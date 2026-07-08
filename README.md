@@ -179,6 +179,21 @@ npm run photos:migrate
 
 Photo Push는 **캐릭터 + 상황 + 감정** 기반으로 사진을 선택합니다 (전체 랜덤 ❌).
 
+## Living AI (살아있는 여자친구)
+
+AI가 먼저 하루를 살아가며 연락합니다. 상세: **[docs/LIVING_AI.md](docs/LIVING_AI.md)**
+
+- 일과 스케줄 (±30~90분 랜덤 변동)
+- 확률 기반 0~2회 불규칙 푸시
+- 감정·호감도·단기/장기 기억
+- 상황별 사진 + 자연스러운 메시지
+
+```bash
+GET /api/living/routine/:userCharacterId   # 오늘 일과
+GET /api/living/emotion/:userCharacterId     # 현재 감정
+GET /api/living/relationship/:userCharacterId
+```
+
 ### Web Push
 
 ```bash

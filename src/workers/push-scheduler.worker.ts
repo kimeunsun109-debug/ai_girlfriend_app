@@ -38,7 +38,7 @@ async function runDailyPlanning() {
     if (lastDailyPlanningDate === todayKey) return;
     lastDailyPlanningDate = todayKey;
 
-    console.log(`[${now.toISOString()}] Running daily schedule planning...`);
+    console.log(`[${now.toISOString()}] Running daily schedule planning (Living AI)...`);
     try {
       await pushSchedulerService.planDailySchedules();
     } catch (err) {

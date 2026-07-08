@@ -2,6 +2,12 @@ import { PrismaClient, FollowUpStage, FollowUpStatus, PhotoCategory } from '@pri
 import { PHOTO_MESSAGE_TEMPLATES } from '../data/photo-message-templates.js';
 import { pushDeliveryService } from './push-delivery.service.js';
 import {
+  memoryReminderEngine,
+  emotionStateManager,
+  relationshipEventEngine,
+  messageVariation,
+} from '../lib/living-ai/index.js';
+import {
   randomPick,
   personalizeMessage,
   classifyReply,
@@ -188,6 +194,14 @@ export class FollowUpService {
       },
     });
 
+    // Living AI: 기억 + 호감도 + 감정
+    await memoryReminderEngine.processUserMessage(userCharacterId, content);
+    await relationshipEventEngine.onUserReply(userCharacterId, sentiment, hasEmoji(content));
+    await emotionStateManager.applyTransition({
+      userCharacterId,
+      replySentiment: sentiment,
+    });
+
     // 감정 기반 후속 응답
   const category = pushLog.photoCategory;
     if (!category) return;
@@ -205,8 +219,8 @@ export class FollowUpService {
     const scenario = template.followUpScenarios.find((s) => s.condition === condition);
     if (!scenario) return;
 
-    const responseMessage = personalizeMessage(
-      randomPick(scenario.messages),
+    const responseMessage = messageVariation.finalize(
+      personalizeMessage(randomPick(scenario.messages), pushLog.user.name, true),
       pushLog.user.name,
       true
     );

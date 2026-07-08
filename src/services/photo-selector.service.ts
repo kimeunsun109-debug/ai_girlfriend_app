@@ -18,6 +18,14 @@ import {
 import { buildPhotoUrl } from '../lib/photo-catalog/index-manager.js';
 import { CHARACTER_SLUG_MAP } from '../lib/photo-catalog/types.js';
 import type { PhotoEmotion } from '../lib/photo-catalog/types.js';
+import { slugToPrismaCategory } from '../lib/photo-catalog/category-mapper.js';
+import {
+  photoPushSelector,
+  memoryReminderEngine,
+  relationshipEventEngine,
+  messageVariation,
+} from '../lib/living-ai/index.js';
+import type { LivingEmotionSlug } from '../lib/living-ai/types.js';
 
 const prisma = new PrismaClient();
 
@@ -36,6 +44,12 @@ export interface PhotoSelectContext {
   scheduledAt?: Date;
   /** 후속 푸시 등 감정 지정 */
   emotion?: PhotoEmotion;
+  /** Living AI: 상황 기반 선택 */
+  categorySlug?: string;
+  livingEmotion?: LivingEmotionSlug;
+  memoryReminder?: string;
+  affectionLevel?: 'low' | 'mid' | 'high';
+  eventMessage?: string;
 }
 
 export class PhotoSelectorService {
@@ -224,7 +238,57 @@ export class PhotoSelectorService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
 
+    const uc = await prisma.userCharacter.findUnique({ where: { id: userCharacterId } });
+    const affectionScore = uc?.affectionScore ?? 50;
+    const tier = options.affectionLevel ?? relationshipEventEngine.getAffectionTier(affectionScore);
+
     const referenceTime = options.scheduledAt ?? new Date();
+    if (options.categorySlug) {
+      const characterSlug = this.resolveCharacterSlug(characterId);
+      if (!characterSlug) return null;
+
+      const livingEmotion = options.livingEmotion ?? 'happy';
+      const excludeHashes = await this.getExcludedHashes(userCharacterId);
+
+      const selected = photoPushSelector.select(
+        characterSlug,
+        {
+          categorySlug: options.categorySlug,
+          emotion: livingEmotion,
+          memoryReminder: options.memoryReminder,
+          affectionLevel: tier,
+          useName: tier !== 'low',
+          contentStyle: options.contentStyle ?? 'normal',
+        },
+        excludeHashes
+      );
+
+      if (!selected) return null;
+
+      const category = slugToPrismaCategory(selected.categorySlug);
+      let message =
+        options.eventMessage ??
+        options.memoryReminder ??
+        (await this.selectMessage(category, user.name, userId, options.specialDayType));
+
+      message = await memoryReminderEngine.enrichMessage(userCharacterId, message);
+      message = relationshipEventEngine.styleMessage(
+        message,
+        user.name,
+        tier,
+        tier !== 'low'
+      );
+      message = messageVariation.finalize(message, user.name, tier !== 'low');
+
+      return {
+        photoId: selected.photoId,
+        photoUrl: selected.photoUrl,
+        thumbnailUrl: selected.thumbnailUrl,
+        message,
+        category,
+      };
+    }
+
     const isoDay = parseInt(formatInTimeZone(referenceTime, timezone, 'i'), 10);
     const dayOfWeek = isoDay % 7;
     const dayOfMonth = parseInt(formatInTimeZone(referenceTime, timezone, 'd'), 10);

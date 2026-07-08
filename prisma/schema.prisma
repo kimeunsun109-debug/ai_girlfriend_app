@@ -89,10 +89,18 @@ model UserCharacter {
   relationshipStartAt DateTime  @default(now())
   day100Date          DateTime? // 100일 기념일
   isActive            Boolean   @default(true)
+  affectionScore      Float     @default(50) // 0~100 호감도
+  relationshipLevel   Int       @default(1)  // 1~10 관계 단계
   createdAt           DateTime  @default(now())
 
   sentPhotos          SentPhotoHistory[]
   chatMessages        ChatMessage[]
+  emotionState        CharacterEmotionState?
+  shortTermMemories   ShortTermMemory[]
+  longTermMemories    LongTermMemory[]
+  dailyRoutines       CharacterDailyRoutine[]
+  dailyLifeEvents     DailyLifeEvent[]
+  notificationQueue   NotificationQueueItem[]
 
   @@unique([userId, characterId])
   @@index([userId])
@@ -248,6 +256,7 @@ enum PushType {
   REGULAR
   SPECIAL_DAY  // 생일, 기념일, 100일
   FOLLOW_UP    // 후속 반응
+  LIVING_EVENT // Living AI 이벤트 기반
 }
 
 // ─── 푸시 발송 로그 & 분석 ────────────────────────────────
@@ -429,4 +438,159 @@ model UserOptimalTime {
   hourWeights Json   // { "8": 0.3, "9": 0.5, "14": 0.8, ... }
   dayWeights  Json   // { "0": 0.4, "1": 0.6, ... }
   updatedAt   DateTime @updatedAt
+}
+
+// ─── Living AI: 감정 상태 ─────────────────────────────────
+model CharacterEmotionState {
+  id              String        @id @default(uuid())
+  userCharacterId String        @unique
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  emotion         LivingEmotion @default(NEUTRAL)
+  intensity       Float         @default(0.6) // 0~1
+  triggers        String[]      @default([])
+  updatedAt       DateTime      @updatedAt
+}
+
+enum LivingEmotion {
+  HAPPY
+  SLEEPY
+  SAD
+  EXCITED
+  ANGRY
+  EMBARRASSED
+  LOVE
+  BORED
+  HUNGRY
+  TIRED
+  NEUTRAL
+}
+
+// ─── Living AI: 단기 기억 (24시간) ──────────────────────────
+model ShortTermMemory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  topic           String        // 감기, 시험, 야근
+  content         String
+  emotion         LivingEmotion?
+  expiresAt       DateTime
+  reminded        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@index([userCharacterId, expiresAt])
+  @@index([userCharacterId, reminded])
+}
+
+// ─── Living AI: 장기 기억 ─────────────────────────────────
+model LongTermMemory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  category        MemoryCategory
+  key             String
+  value           String
+  confidence      Float         @default(0.8)
+  source          String?       // chat, inferred, user_profile
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userCharacterId, category, key])
+  @@index([userCharacterId, category])
+}
+
+enum MemoryCategory {
+  PREFERENCE
+  FOOD
+  DISLIKE
+  JOB
+  LIFESTYLE
+  BIRTHDAY
+  HOBBY
+  CUSTOM
+}
+
+// ─── Living AI: 일일 루틴 ─────────────────────────────────
+model CharacterDailyRoutine {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  date            DateTime      // timezone 기준 날짜 (00:00)
+  timezone        String
+  activities      Json          // RoutineActivity[]
+  daySeed         String
+  createdAt       DateTime      @default(now())
+
+  @@unique([userCharacterId, date])
+  @@index([userCharacterId, date])
+}
+
+// ─── Living AI: 일일 이벤트 ───────────────────────────────
+model DailyLifeEvent {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  characterId     String
+  date            DateTime
+  eventType       LifeEventType
+  categorySlug    String
+  emotion         LivingEmotion
+  scheduledAt     DateTime
+  message         String?
+  pushed          Boolean       @default(false)
+  pushLogId       String?
+  probability     Float
+  createdAt       DateTime      @default(now())
+
+  @@index([userCharacterId, date])
+  @@index([scheduledAt, pushed])
+}
+
+enum LifeEventType {
+  HAIR
+  NAIL
+  SHOPPING
+  CAFE
+  EXERCISE
+  MOVIE
+  DRIVE
+  WALK
+  LATE_NIGHT_SNACK
+  DRINKING
+  RAIN
+  SICK
+  BIRTHDAY
+  TRAVEL
+  NEW_OUTFIT
+  SELFIE
+  WORK
+  LUNCH
+  COMMUTE
+  SLEEP
+}
+
+// ─── Living AI: 알림 큐 ───────────────────────────────────
+model NotificationQueueItem {
+  id              String         @id @default(uuid())
+  userId          String
+  userCharacterId String
+  userCharacter   UserCharacter  @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  characterId     String
+  type            NotificationType @default(PHOTO_PUSH)
+  scheduledAt     DateTime
+  status          ScheduleStatus @default(PENDING)
+  priority        Int            @default(0)
+  payload         Json           // categorySlug, emotion, eventId, message hints
+  pushScheduleId  String?
+  createdAt       DateTime       @default(now())
+  executedAt      DateTime?
+
+  @@index([status, scheduledAt])
+  @@index([userId, scheduledAt])
+}
+
+enum NotificationType {
+  PHOTO_PUSH
+  TEXT_NUDGE
+  MEMORY_REMINDER
+  EVENT_PHOTO
 }

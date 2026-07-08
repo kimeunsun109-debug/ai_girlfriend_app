@@ -5,8 +5,8 @@ import { photoSelectorService } from './photo-selector.service.js';
 import { followUpService } from './followup.service.js';
 import { pushDeliveryService } from './push-delivery.service.js';
 import { analyticsService } from './analytics.service.js';
+import { livingAIScheduler } from '../lib/living-ai/index.js';
 import {
-  generateRandomPushTime,
   getUserTodayStart,
   getUserNow,
   generateMonthlySkipDays,
@@ -85,50 +85,18 @@ export class PushSchedulerService {
     );
     const hasSpecialDay = specialDay != null;
 
-    // 발송 횟수 결정
-    const pushCount = await engagementService.getDailyPushCount(user.id, hasSpecialDay);
-    if (pushCount === 0) return;
-
     const activeCharacter = user.characters[0];
     if (!activeCharacter) return;
 
-    const usedHours: number[] = [];
-
-    for (let i = 0; i < pushCount; i++) {
-      const scheduledAt = generateRandomPushTime(timezone, usedHours, tomorrow);
-      const hour = parseInt(formatInTimeZone(scheduledAt, timezone, 'H'), 10);
-      usedHours.push(hour);
-
-      const isSpecial = i === pushCount - 1 && hasSpecialDay;
-
-      await prisma.pushSchedule.create({
-        data: {
-          userId: user.id,
-          characterId: activeCharacter.characterId,
-          scheduledAt,
-          status: ScheduleStatus.PENDING,
-          pushType: isSpecial ? PushType.SPECIAL_DAY : PushType.REGULAR,
-          timezone,
-        },
-      });
-    }
-
-    // 일일 쿼터 설정
-    await prisma.dailyPushQuota.upsert({
-      where: {
-        userId_date: { userId: user.id, date: tomorrow },
-      },
-      create: {
-        userId: user.id,
-        date: tomorrow,
-        sentCount: 0,
-        maxCount: PUSH_CONFIG.MAX_DAILY_PUSHES,
-        bonusCount: hasSpecialDay ? PUSH_CONFIG.SPECIAL_DAY_BONUS : 0,
-      },
-      update: {
-        bonusCount: hasSpecialDay ? PUSH_CONFIG.SPECIAL_DAY_BONUS : 0,
-      },
-    });
+    // Living AI 일일 계획 (루틴 + 이벤트 + 확률 기반 푸시)
+    await livingAIScheduler.planDayForUserCharacter(
+      user.id,
+      activeCharacter.id,
+      activeCharacter.characterId,
+      timezone,
+      tomorrow,
+      { hasSpecialDay, skipDay: false }
+    );
   }
 
   private detectSpecialDay(
@@ -298,6 +266,21 @@ export class PushSchedulerService {
           )
         : null;
 
+    // Living AI 컨텍스트 로드
+    const queueItem = await prisma.notificationQueueItem.findFirst({
+      where: { pushScheduleId: schedule.id, status: ScheduleStatus.PENDING },
+    });
+    const payload = queueItem?.payload as Record<string, unknown> | undefined;
+
+    const userRecord = await prisma.user.findUnique({ where: { id: schedule.userId } });
+    const inactiveDays = userRecord?.lastActiveAt
+      ? Math.floor((Date.now() - userRecord.lastActiveAt.getTime()) / (86400000))
+      : 0;
+    const contentStyle = engagementService.getContentStyle(
+      userRecord?.engagementScore ?? 0.5,
+      inactiveDays
+    );
+
     const content = await photoSelectorService.generatePushContent(
       schedule.userId,
       characterId,
@@ -305,7 +288,17 @@ export class PushSchedulerService {
       schedule.timezone,
       {
         scheduledAt: schedule.scheduledAt,
+        contentStyle,
         ...(specialDayType ? { specialDayType } : {}),
+        ...(payload?.categorySlug
+          ? {
+              categorySlug: payload.categorySlug as string,
+              livingEmotion: payload.emotion as import('../lib/living-ai/types.js').LivingEmotionSlug,
+              memoryReminder: payload.memoryReminder as string | undefined,
+              affectionLevel: payload.affectionLevel as 'low' | 'mid' | 'high' | undefined,
+              eventMessage: (payload.eventMessage ?? payload.memoryReminder) as string | undefined,
+            }
+          : {}),
       }
     );
 
@@ -378,6 +371,20 @@ export class PushSchedulerService {
 
       // 최적 시간 학습
       await analyticsService.recordPushTime(schedule.userId, new Date());
+
+      if (queueItem) {
+        await prisma.notificationQueueItem.update({
+          where: { id: queueItem.id },
+          data: { status: ScheduleStatus.EXECUTED, executedAt: new Date() },
+        });
+        const eventId = payload?.eventId as string | undefined;
+        if (eventId) {
+          await prisma.dailyLifeEvent.update({
+            where: { id: eventId },
+            data: { pushed: true, pushLogId: pushLog.id },
+          });
+        }
+      }
     } catch (err) {
       await prisma.pushSchedule.update({
         where: { id: schedule.id },
