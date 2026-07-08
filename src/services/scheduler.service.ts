@@ -7,6 +7,11 @@ import { pushDeliveryService } from './push-delivery.service.js';
 import { analyticsService } from './analytics.service.js';
 import { livingAIScheduler } from '../lib/living-ai/index.js';
 import {
+  memoryEventEngine,
+  anniversaryEngine,
+  memoryReplayService,
+} from '../lib/relationship-journey/index.js';
+import {
   getUserTodayStart,
   getUserNow,
   generateMonthlySkipDays,
@@ -358,6 +363,27 @@ export class PushSchedulerService {
         schedule.userId,
         content.message
       );
+
+      const character = await prisma.character.findUnique({ where: { id: characterId } });
+      const categorySlug = (payload?.categorySlug as string) ?? 'selfie';
+
+      await memoryEventEngine.onPhotoSent({
+        userCharacterId: userCharacter.id,
+        characterName: character?.name ?? '캐릭터',
+        photoId: content.photoId,
+        photoUrl: content.photoUrl,
+        categorySlug,
+        pushLogId: pushLog.id,
+        message: content.message,
+      });
+
+      const anniversaryMsg = await anniversaryEngine.checkAndCelebrate(
+        userCharacter.id,
+        character?.name ?? '캐릭터'
+      );
+      if (anniversaryMsg) {
+        console.log(`Anniversary message for ${userCharacter.id}: ${anniversaryMsg}`);
+      }
 
       // 후속 시나리오 스케줄
       await followUpService.scheduleFollowUps(pushLog.id, content.category);

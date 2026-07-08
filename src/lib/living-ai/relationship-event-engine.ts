@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { LIVING_AI_CONFIG } from '../../config/living-ai.config.js';
 import type { LivingPushContext } from './types.js';
 import { randomPick } from '../../utils/push.utils.js';
+import { relationshipJourneyService } from '../relationship-journey/relationship-journey.service.js';
 
 const prisma = new PrismaClient();
 
@@ -26,28 +27,18 @@ export class RelationshipEventEngine {
     return map[tier];
   }
 
-  /** 호감도 변화 적용 */
+  /** 호감도 변화 적용 → Relationship Journey 연동 */
   async adjustAffection(
     userCharacterId: string,
     delta: number,
     reason: string
   ): Promise<number> {
-    const uc = await prisma.userCharacter.findUnique({ where: { id: userCharacterId } });
-    if (!uc) return LIVING_AI_CONFIG.AFFECTION.default;
-
-    const next = Math.max(
-      LIVING_AI_CONFIG.AFFECTION.min,
-      Math.min(LIVING_AI_CONFIG.AFFECTION.max, uc.affectionScore + delta)
+    const result = await relationshipJourneyService.progressAffection(
+      userCharacterId,
+      delta,
+      reason
     );
-
-    const level = Math.min(10, Math.max(1, Math.floor(next / 10)));
-
-    await prisma.userCharacter.update({
-      where: { id: userCharacterId },
-      data: { affectionScore: next, relationshipLevel: level },
-    });
-
-    return next;
+    return result.affectionScore;
   }
 
   /** 답장에 따른 호감도 */

@@ -1,12 +1,36 @@
 import { PrismaClient } from '@prisma/client';
 import { CHARACTER_SPECS } from '../src/data/character-specs.js';
+import { RELATIONSHIP_STAGES } from '../src/config/relationship-journey.config.js';
+import { memoryEventEngine } from '../src/lib/relationship-journey/memory-event-engine.js';
 
 const prisma = new PrismaClient();
 const USER_ID = '00000000-0000-0000-0000-000000000010';
 
 async function main() {
-  console.log('Seeding characters (slug) + user...');
+  console.log('Seeding characters (slug) + user + relationship stages...');
   console.log('Run "npm run photos:migrate" to build photo catalog from assets.\n');
+
+  for (const stage of RELATIONSHIP_STAGES) {
+    await prisma.relationshipStage.upsert({
+      where: { id: stage.level },
+      create: {
+        id: stage.level,
+        name: stage.name,
+        nameKo: stage.nameKo,
+        description: stage.description,
+        minAffection: stage.minAffection,
+        maxAffection: stage.maxAffection,
+        speechStyle: stage.speechStyle,
+        rewards: [...stage.rewards],
+      },
+      update: {
+        nameKo: stage.nameKo,
+        description: stage.description,
+        minAffection: stage.minAffection,
+        maxAffection: stage.maxAffection,
+      },
+    });
+  }
 
   for (const spec of CHARACTER_SPECS) {
     await prisma.character.upsert({
@@ -43,18 +67,29 @@ async function main() {
   const day100 = new Date(relationshipStart);
   day100.setDate(day100.getDate() + 100);
 
-  await prisma.userCharacter.upsert({
+  const existing = await prisma.userCharacter.findUnique({
+    where: { userId_characterId: { userId: USER_ID, characterId: yunaId } },
+  });
+
+  const uc = await prisma.userCharacter.upsert({
     where: { userId_characterId: { userId: USER_ID, characterId: yunaId } },
     create: {
       userId: USER_ID,
       characterId: yunaId,
       relationshipStartAt: relationshipStart,
       day100Date: day100,
+      affectionScore: 45,
+      relationshipLevel: 4,
     },
-    update: {},
+    update: { affectionScore: 45, relationshipLevel: 4 },
   });
 
+  if (!existing) {
+    await memoryEventEngine.onUserCharacterCreated(uc.id, CHARACTER_SPECS[0].name);
+  }
+
   console.log('\nSeed done. Next: npm run photos:migrate');
+  console.log(`Demo userCharacterId: ${uc.id}`);
 }
 
 main()

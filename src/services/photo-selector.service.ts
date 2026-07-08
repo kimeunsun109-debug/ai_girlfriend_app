@@ -25,6 +25,11 @@ import {
   relationshipEventEngine,
   messageVariation,
 } from '../lib/living-ai/index.js';
+import {
+  sharedMemoryService,
+  memoryReplayService,
+  dynamicConversationService,
+} from '../lib/relationship-journey/index.js';
 import type { LivingEmotionSlug } from '../lib/living-ai/types.js';
 
 const prisma = new PrismaClient();
@@ -271,7 +276,20 @@ export class PhotoSelectorService {
         options.memoryReminder ??
         (await this.selectMessage(category, user.name, userId, options.specialDayType));
 
+      const replay = await memoryReplayService.maybeInjectReplay(userCharacterId, 0.12);
+      if (replay) message = replay;
+
+      const sharedRecall = await sharedMemoryService.recallForMessage(userCharacterId);
+      if (sharedRecall && Math.random() < 0.25) {
+        message = `${sharedRecall} ${message}`;
+      }
+
       message = await memoryReminderEngine.enrichMessage(userCharacterId, message);
+      message = dynamicConversationService.styleByStage(
+        message,
+        uc?.relationshipLevel ?? 1,
+        user.name
+      );
       message = relationshipEventEngine.styleMessage(
         message,
         user.name,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { param } from '../utils/route.utils.js';
 import { SpecialDayType } from '@prisma/client';
+import { memoryEventEngine } from '../lib/relationship-journey/index.js';
 
 export const userRouter = Router();
 
@@ -66,6 +67,11 @@ userRouter.post('/:userId/characters', async (req: Request, res: Response) => {
     },
     include: { character: true },
   });
+
+  await memoryEventEngine.onUserCharacterCreated(
+    userCharacter.id,
+    userCharacter.character.name
+  );
 
   res.status(201).json(userCharacter);
 });

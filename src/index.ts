@@ -7,6 +7,7 @@ import { pushRouter } from './routes/push.routes.js';
 import { userRouter } from './routes/user.routes.js';
 import { photosRouter } from './routes/photos.routes.js';
 import { livingRouter } from './routes/living.routes.js';
+import { relationshipRouter } from './routes/relationship.routes.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/users', userRouter);
 app.use('/api/photos', photosRouter);
 app.use('/api/living', livingRouter);
+app.use('/api', relationshipRouter);
 app.use('/api/push', pushRouter);
 
 app.listen(PORT, () => {

@@ -8,6 +8,10 @@ import {
   messageVariation,
 } from '../lib/living-ai/index.js';
 import {
+  memoryEventEngine,
+  dynamicConversationService,
+} from '../lib/relationship-journey/index.js';
+import {
   randomPick,
   personalizeMessage,
   classifyReply,
@@ -202,6 +206,28 @@ export class FollowUpService {
       replySentiment: sentiment,
     });
 
+    const uc = await prisma.userCharacter.findUnique({
+      where: { id: userCharacterId },
+      include: { character: true },
+    });
+
+    if (sentiment === 'negative') {
+      await memoryEventEngine.onFirstEvent(
+        userCharacterId,
+        'FIRST_FIGHT',
+        '첫 다툼',
+        content.slice(0, 80)
+      );
+    }
+    if (sentiment === 'positive' && content.includes('예뻐')) {
+      await memoryEventEngine.onSpecialChat(
+        userCharacterId,
+        uc?.character.name ?? '',
+        content,
+        0.85
+      );
+    }
+
     // 감정 기반 후속 응답
   const category = pushLog.photoCategory;
     if (!category) return;
@@ -220,7 +246,11 @@ export class FollowUpService {
     if (!scenario) return;
 
     const responseMessage = messageVariation.finalize(
-      personalizeMessage(randomPick(scenario.messages), pushLog.user.name, true),
+      dynamicConversationService.styleByStage(
+        personalizeMessage(randomPick(scenario.messages), pushLog.user.name, true),
+        uc?.relationshipLevel ?? 1,
+        pushLog.user.name
+      ),
       pushLog.user.name,
       true
     );

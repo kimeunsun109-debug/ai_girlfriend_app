@@ -90,7 +90,8 @@ model UserCharacter {
   day100Date          DateTime? // 100일 기념일
   isActive            Boolean   @default(true)
   affectionScore      Float     @default(50) // 0~100 호감도
-  relationshipLevel   Int       @default(1)  // 1~10 관계 단계
+  relationshipLevel   Int       @default(1)  // 1~8 관계 단계 (Relationship Journey)
+  relationshipStageAt DateTime  @default(now()) // 현재 단계 도달 시각
   createdAt           DateTime  @default(now())
 
   sentPhotos          SentPhotoHistory[]
@@ -101,6 +102,12 @@ model UserCharacter {
   dailyRoutines       CharacterDailyRoutine[]
   dailyLifeEvents     DailyLifeEvent[]
   notificationQueue   NotificationQueueItem[]
+  memoryTimeline      MemoryTimeline[]
+  anniversaries       Anniversary[]
+  sharedMemories      SharedMemory[]
+  memoryAlbumItems    MemoryAlbumItem[]
+  relationshipRewards RelationshipReward[]
+  stageHistory        RelationshipStageHistory[]
 
   @@unique([userId, characterId])
   @@index([userId])
@@ -593,4 +600,165 @@ enum NotificationType {
   TEXT_NUDGE
   MEMORY_REMINDER
   EVENT_PHOTO
+  ANNIVERSARY
+  MEMORY_REPLAY
+}
+
+// ─── Relationship Journey: 타임라인 ───────────────────────
+model MemoryTimeline {
+  id                 String            @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter     @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  eventType          TimelineEventType
+  title              String
+  description        String?
+  emoji              String?
+  photoId            String?
+  photoUrl           String?
+  pushLogId          String?
+  albumCategory      AlbumCategory?
+  emotionalIntensity Float             @default(0.5)
+  occurredAt         DateTime
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+
+  albumItems         MemoryAlbumItem[]
+
+  @@index([userCharacterId, occurredAt])
+  @@index([userCharacterId, eventType])
+}
+
+enum TimelineEventType {
+  FIRST_MEET
+  FIRST_PHOTO
+  FIRST_SELFIE
+  FIRST_GIFT
+  FIRST_CALL
+  FIRST_LAUGH
+  FIRST_JEALOUSY
+  FIRST_FIGHT
+  RECONCILE
+  BIRTHDAY
+  ANNIVERSARY
+  DAY_100
+  DAY_200
+  FIRST_TRIP
+  FIRST_RAINY_DAY
+  FIRST_CHRISTMAS
+  FIRST_NEW_YEAR
+  PHOTO_SENT
+  GIFT_SENT
+  CALL
+  SPECIAL_CHAT
+  EVENT
+  STAGE_UP
+  MEMORY_REPLAY
+  CUSTOM
+}
+
+// ─── Relationship Journey: 기념일 ───────────────────────────
+model Anniversary {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  dayCount        Int
+  label           String
+  scheduledDate   DateTime
+  celebratedAt    DateTime?
+  isCelebrated    Boolean       @default(false)
+  timelineId      String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([userCharacterId, dayCount])
+  @@index([userCharacterId, scheduledDate])
+}
+
+// ─── Relationship Journey: 공유 기억 (감정·회상) ─────────────
+model SharedMemory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  title              String
+  content            String
+  recallPhrase       String
+  emotionalIntensity Float         @default(0.7)
+  occurredAt         DateTime
+  lastRecalledAt     DateTime?
+  recallCount        Int           @default(0)
+  tags               String[]      @default([])
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, occurredAt])
+  @@index([userCharacterId, emotionalIntensity])
+}
+
+// ─── Relationship Journey: 추억 앨범 ────────────────────────
+model MemoryAlbumItem {
+  id              String         @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter  @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  albumCategory   AlbumCategory
+  photoId         String?
+  photoUrl        String
+  title           String?
+  capturedAt      DateTime
+  timelineId      String?
+  timeline        MemoryTimeline? @relation(fields: [timelineId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([userCharacterId, albumCategory])
+  @@index([userCharacterId, capturedAt])
+}
+
+enum AlbumCategory {
+  SELFIE
+  FOOD
+  CAFE
+  ANNIVERSARY
+  GIFT
+  SPRING
+  RAIN
+  CHRISTMAS
+  NEW_YEAR
+  COUPLE
+  TRAVEL
+  OTHER
+}
+
+// ─── Relationship Journey: 단계별 보상 ─────────────────────
+model RelationshipReward {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  stageLevel      Int
+  rewardKey       String
+  rewardLabel     String
+  unlockedAt      DateTime      @default(now())
+
+  @@unique([userCharacterId, rewardKey])
+  @@index([userCharacterId, stageLevel])
+}
+
+// ─── Relationship Journey: 단계 이력 ────────────────────────
+model RelationshipStageHistory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  stageLevel      Int
+  stageName       String
+  reachedAt       DateTime      @default(now())
+
+  @@index([userCharacterId, reachedAt])
+}
+
+// ─── Relationship Stage 정의 (시드용 참조) ──────────────────
+model RelationshipStage {
+  id          Int      @id
+  name        String
+  nameKo      String
+  description String
+  minAffection Float
+  maxAffection Float
+  speechStyle String
+  rewards     String[] @default([])
 }

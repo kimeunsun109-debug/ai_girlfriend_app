@@ -183,15 +183,20 @@ Photo Push는 **캐릭터 + 상황 + 감정** 기반으로 사진을 선택합�
 
 AI가 먼저 하루를 살아가며 연락합니다. 상세: **[docs/LIVING_AI.md](docs/LIVING_AI.md)**
 
-- 일과 스케줄 (±30~90분 랜덤 변동)
-- 확률 기반 0~2회 불규칙 푸시
-- 감정·호감도·단기/장기 기억
-- 상황별 사진 + 자연스러운 메시지
+## Relationship Journey (추억과 관계 성장)
+
+AI와 **함께 시간을 보내는** 경험. 상세: **[docs/RELATIONSHIP_JOURNEY.md](docs/RELATIONSHIP_JOURNEY.md)**
+
+- 8단계 관계 성장 (처음 만남 → 평생 함께)
+- Memory Timeline + Album + Anniversary
+- Memory Replay (1년 전 오늘 추억)
+- 단계별 다른 말투·보상 해금
 
 ```bash
-GET /api/living/routine/:userCharacterId   # 오늘 일과
-GET /api/living/emotion/:userCharacterId     # 현재 감정
-GET /api/living/relationship/:userCharacterId
+# UI: http://localhost:3000/memories.html
+GET /api/timeline?userCharacterId=
+GET /api/journey?userCharacterId=
+GET /api/album?userCharacterId=
 ```
 
 ### Web Push
