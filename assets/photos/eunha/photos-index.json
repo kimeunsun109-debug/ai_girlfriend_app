@@ -1,0 +1,146 @@
+{
+  "character": "eunha",
+  "characterId": "00000000-0000-0000-0000-000000000004",
+  "updatedAt": "2026-07-08T04:54:30.935Z",
+  "totalCount": 9,
+  "photos": [
+    {
+      "id": "2c33adc7-1b75-42b4-86ec-e0fc516b8587",
+      "character": "eunha",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "coffee",
+        "cafe"
+      ],
+      "filename": "91444de42876e6a3.jpg",
+      "relativePath": "eunha/coffee/91444de42876e6a3.jpg",
+      "contentHash": "91444de42876e6a3",
+      "importedAt": "2026-07-08T04:53:51.346Z"
+    },
+    {
+      "id": "bfbe63a7-6980-43c8-b72a-b32676af53dc",
+      "character": "eunha",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "cafe",
+        "peace"
+      ],
+      "filename": "8ce147c3d14e35fc.jpg",
+      "relativePath": "eunha/coffee/8ce147c3d14e35fc.jpg",
+      "contentHash": "8ce147c3d14e35fc",
+      "importedAt": "2026-07-08T04:53:51.352Z"
+    },
+    {
+      "id": "e83748fb-161e-415b-8d0d-3374d2cfb5aa",
+      "character": "eunha",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "dessert",
+        "cafe"
+      ],
+      "filename": "7e94472dc622c87e.jpg",
+      "relativePath": "eunha/coffee/7e94472dc622c87e.jpg",
+      "contentHash": "7e94472dc622c87e",
+      "importedAt": "2026-07-08T04:53:51.357Z"
+    },
+    {
+      "id": "1f1390ac-734d-477b-844b-1c273f2b4809",
+      "character": "eunha",
+      "category": "alcohol",
+      "emotion": "tired",
+      "tags": [
+        "eunha",
+        "drinking",
+        "hangover"
+      ],
+      "filename": "2a7cd942154361cf.jpg",
+      "relativePath": "eunha/alcohol/2a7cd942154361cf.jpg",
+      "contentHash": "2a7cd942154361cf",
+      "importedAt": "2026-07-08T04:53:51.363Z"
+    },
+    {
+      "id": "29ee5d61-af34-49ed-82e9-0b5f54981270",
+      "character": "eunha",
+      "category": "nail",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "nail",
+        "art"
+      ],
+      "filename": "373a176170ccf83c.jpg",
+      "relativePath": "eunha/nail/373a176170ccf83c.jpg",
+      "contentHash": "373a176170ccf83c",
+      "importedAt": "2026-07-08T04:53:51.366Z"
+    },
+    {
+      "id": "8ac0d459-f518-412e-8d2c-f0fe95805bef",
+      "character": "eunha",
+      "category": "tteokbokki",
+      "emotion": "excited",
+      "tags": [
+        "eunha",
+        "tteokbokki"
+      ],
+      "filename": "23efe244240bf334.jpg",
+      "relativePath": "eunha/tteokbokki/23efe244240bf334.jpg",
+      "contentHash": "23efe244240bf334",
+      "importedAt": "2026-07-08T04:53:51.371Z"
+    },
+    {
+      "id": "6f88cd4e-a349-44f8-805f-1363a2d5b54e",
+      "character": "eunha",
+      "category": "nail",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "nail",
+        "art",
+        "hand"
+      ],
+      "filename": "f918f53ee3242943.jpg",
+      "relativePath": "eunha/nail/f918f53ee3242943.jpg",
+      "contentHash": "f918f53ee3242943",
+      "importedAt": "2026-07-08T04:53:51.375Z"
+    },
+    {
+      "id": "7067d5f6-a870-43fe-beaf-87124f1ba6e8",
+      "character": "eunha",
+      "category": "weekend",
+      "emotion": "happy",
+      "tags": [
+        "eunha",
+        "weekend",
+        "out",
+        "sunny"
+      ],
+      "filename": "094fa0aa8f5cefb2.jpg",
+      "relativePath": "eunha/weekend/094fa0aa8f5cefb2.jpg",
+      "contentHash": "094fa0aa8f5cefb2",
+      "importedAt": "2026-07-08T04:53:51.381Z"
+    },
+    {
+      "id": "b519a486-0c01-49fe-adab-5913be831e5b",
+      "character": "eunha",
+      "category": "game",
+      "emotion": "excited",
+      "tags": [
+        "eunha",
+        "game",
+        "new",
+        "import",
+        "test"
+      ],
+      "filename": "c47dd9465c00e9a0.png",
+      "relativePath": "eunha/game/c47dd9465c00e9a0.png",
+      "contentHash": "c47dd9465c00e9a0",
+      "importedAt": "2026-07-08T04:54:30.925Z"
+    }
+  ]
+}

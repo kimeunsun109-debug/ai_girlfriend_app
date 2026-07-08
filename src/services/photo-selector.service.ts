@@ -1,4 +1,4 @@
-import { PrismaClient, PhotoCategory, TimeOfDay } from '@prisma/client';
+import { PrismaClient, PhotoCategory, TimeOfDay, SpecialDayType } from '@prisma/client';
 import {
   PHOTO_MESSAGE_TEMPLATES,
   SPECIAL_DAY_MESSAGES,
@@ -10,7 +10,14 @@ import {
   selectCategoryForDay,
   formatInTimeZone,
 } from '../utils/push.utils.js';
-import type { SpecialDayType } from '@prisma/client';
+import { photoCatalogRepository } from '../lib/photo-catalog/photo-repository.js';
+import {
+  prismaCategoryToSlug,
+  EMOTION_FALLBACK_CATEGORIES,
+} from '../lib/photo-catalog/category-mapper.js';
+import { buildPhotoUrl } from '../lib/photo-catalog/index-manager.js';
+import { CHARACTER_SLUG_MAP } from '../lib/photo-catalog/types.js';
+import type { PhotoEmotion } from '../lib/photo-catalog/types.js';
 
 const prisma = new PrismaClient();
 
@@ -22,8 +29,16 @@ export interface PhotoPushContent {
   category: PhotoCategory;
 }
 
+export interface PhotoSelectContext {
+  specialDayType?: SpecialDayType;
+  contentStyle?: string;
+  forceCategory?: PhotoCategory;
+  scheduledAt?: Date;
+  /** 후속 푸시 등 감정 지정 */
+  emotion?: PhotoEmotion;
+}
+
 export class PhotoSelectorService {
-  /** 시간대 → TimeOfDay 매핑 */
   private getTimeOfDay(hour: number): TimeOfDay {
     if (hour < 10) return TimeOfDay.MORNING;
     if (hour < 14) return TimeOfDay.AFTERNOON;
@@ -32,7 +47,42 @@ export class PhotoSelectorService {
     return TimeOfDay.LATE_NIGHT;
   }
 
-  /** 중복 방지: 최근 발송된 사진/메시지 제외 */
+  private resolveCharacterSlug(characterId: string): string | null {
+    const entry = Object.values(CHARACTER_SLUG_MAP).find((c) => c.id === characterId);
+    return entry?.slug ?? null;
+  }
+
+  private inferEmotion(
+    category: PhotoCategory,
+    contentStyle?: string,
+    explicit?: PhotoEmotion
+  ): PhotoEmotion {
+    if (explicit) return explicit;
+    if (contentStyle === 'soft' || contentStyle === 'miss_you') return 'loving';
+    if (contentStyle === 'gentle') return 'neutral';
+
+    switch (category) {
+      case PhotoCategory.SAD:
+        return 'sad';
+      case PhotoCategory.HAPPY:
+        return 'happy';
+      case PhotoCategory.SELFIE_BED:
+        return 'sleepy';
+      case PhotoCategory.HAIR_SALON:
+        return 'shy';
+      case PhotoCategory.WORK_OVERTIME:
+      case PhotoCategory.DRINKING:
+        return 'tired';
+      case PhotoCategory.RAIN:
+        return 'loving';
+      case PhotoCategory.WEEKEND_OUT:
+      case PhotoCategory.GAME:
+        return 'excited';
+      default:
+        return 'happy';
+    }
+  }
+
   async getExcludedPhotoIds(userCharacterId: string): Promise<string[]> {
     const cooldownDate = new Date();
     cooldownDate.setDate(cooldownDate.getDate() - PUSH_CONFIG.PHOTO_REUSE_COOLDOWN_DAYS);
@@ -43,6 +93,17 @@ export class PhotoSelectorService {
     });
 
     return history.map((h) => h.photoId);
+  }
+
+  async getExcludedHashes(userCharacterId: string): Promise<string[]> {
+    const excludedIds = await this.getExcludedPhotoIds(userCharacterId);
+    if (excludedIds.length === 0) return [];
+
+    const photos = await prisma.characterPhoto.findMany({
+      where: { id: { in: excludedIds } },
+      select: { contentHash: true },
+    });
+    return photos.map((p) => p.contentHash).filter((h): h is string => h != null);
   }
 
   async getExcludedMessages(userId: string): Promise<string[]> {
@@ -57,15 +118,40 @@ export class PhotoSelectorService {
     return history.map((h) => h.message);
   }
 
-  /** 카테고리에 맞는 사진 선택 */
-  async selectPhoto(
+  /**
+   * 캐릭터 + 상황(category) + 감정(emotion) 기반 사진 선택
+   * 카탈로그 인덱스 우선, DB fallback
+   */
+  async selectPhotoByContext(
     characterId: string,
     userCharacterId: string,
     category: PhotoCategory,
-    timeOfDay?: TimeOfDay
+    emotion: PhotoEmotion
   ): Promise<{ id: string; url: string; thumbnailUrl: string | null } | null> {
+    const characterSlug = this.resolveCharacterSlug(characterId);
+    const categorySlug = prismaCategoryToSlug(category);
+    const excludeHashes = await this.getExcludedHashes(userCharacterId);
     const excludedIds = await this.getExcludedPhotoIds(userCharacterId);
 
+    if (characterSlug) {
+      const meta = photoCatalogRepository.selectWithFallback(
+        characterSlug,
+        categorySlug,
+        emotion,
+        excludeHashes,
+        EMOTION_FALLBACK_CATEGORIES[emotion] ?? []
+      );
+
+      if (meta) {
+        return {
+          id: meta.id,
+          url: buildPhotoUrl(meta.relativePath),
+          thumbnailUrl: buildPhotoUrl(meta.relativePath),
+        };
+      }
+    }
+
+    // DB fallback
     const photos = await prisma.characterPhoto.findMany({
       where: {
         characterId,
@@ -73,32 +159,34 @@ export class PhotoSelectorService {
         isActive: true,
         status: 'ACTIVE',
         id: { notIn: excludedIds },
-        ...(timeOfDay ? { timeOfDay } : {}),
+        ...(emotion ? { OR: [{ emotion }, { expression: emotion }] } : {}),
       },
-      take: 20,
+      take: 50,
     });
 
-    if (photos.length === 0) {
-      // 카테고리 무관하게 fallback
-      const fallback = await prisma.characterPhoto.findMany({
-        where: {
-          characterId,
-          isActive: true,
-          status: 'ACTIVE',
-          id: { notIn: excludedIds },
-        },
-        take: 20,
-      });
-      if (fallback.length === 0) return null;
+    if (photos.length > 0) {
+      const picked = randomPick(photos);
+      return { id: picked.id, url: picked.url, thumbnailUrl: picked.thumbnailUrl };
+    }
+
+    const fallback = await prisma.characterPhoto.findMany({
+      where: {
+        characterId,
+        categorySlug,
+        isActive: true,
+        status: 'ACTIVE',
+        id: { notIn: excludedIds },
+      },
+      take: 50,
+    });
+    if (fallback.length > 0) {
       const picked = randomPick(fallback);
       return { id: picked.id, url: picked.url, thumbnailUrl: picked.thumbnailUrl };
     }
 
-    const picked = randomPick(photos);
-    return { id: picked.id, url: picked.url, thumbnailUrl: picked.thumbnailUrl };
+    return null;
   }
 
-  /** 메시지 선택 (중복 방지 + 이름 개인화) */
   async selectMessage(
     category: PhotoCategory,
     userName: string,
@@ -126,18 +214,12 @@ export class PhotoSelectorService {
     return personalizeMessage(rawMessage, userName, useName);
   }
 
-  /** 전체 푸시 콘텐츠 생성 */
   async generatePushContent(
     userId: string,
     characterId: string,
     userCharacterId: string,
     timezone: string,
-    options: {
-      specialDayType?: SpecialDayType;
-      contentStyle?: string;
-      forceCategory?: PhotoCategory;
-      scheduledAt?: Date;
-    } = {}
+    options: PhotoSelectContext = {}
   ): Promise<PhotoPushContent | null> {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
@@ -147,8 +229,6 @@ export class PhotoSelectorService {
     const dayOfWeek = isoDay % 7;
     const dayOfMonth = parseInt(formatInTimeZone(referenceTime, timezone, 'd'), 10);
     const weekNumber = Math.ceil(dayOfMonth / 7);
-    const hour = parseInt(formatInTimeZone(referenceTime, timezone, 'H'), 10);
-    const timeOfDay = this.getTimeOfDay(hour);
 
     let category: PhotoCategory;
     if (options.forceCategory) {
@@ -169,7 +249,8 @@ export class PhotoSelectorService {
       category = selectCategoryForDay(dayOfWeek, weekNumber, exclude);
     }
 
-    const photo = await this.selectPhoto(characterId, userCharacterId, category, timeOfDay);
+    const emotion = this.inferEmotion(category, options.contentStyle, options.emotion);
+    const photo = await this.selectPhotoByContext(characterId, userCharacterId, category, emotion);
     if (!photo) return null;
 
     const message = await this.selectMessage(
@@ -188,7 +269,6 @@ export class PhotoSelectorService {
     };
   }
 
-  /** 발송 이력 기록 */
   async recordSent(userCharacterId: string, photoId: string, userId: string, message: string) {
     await prisma.$transaction([
       prisma.sentPhotoHistory.upsert({

@@ -69,6 +69,7 @@ model WebPushSubscription {
 // ─── 캐릭터 ───────────────────────────────────────────────
 model Character {
   id           String   @id @default(uuid())
+  slug         String?  @unique
   name         String
   personality  String   // 성격 설명
   speechStyle  String   // 말투 스타일 (예: "다정한", "장난스러운")
@@ -105,8 +106,11 @@ model CharacterPhoto {
   url         String
   thumbnailUrl String?
   category    PhotoCategory
+  categorySlug String?       // hair, coffee, rain ...
+  relativePath String?       // yuna/hair/abc.jpg
+  emotion     String?        // happy, sad, sleepy ...
   tags        String[]      // ["셀카", "침대", "아침"]
-  expression  String?       // 기쁨, 슬픔, 졸림 등
+  expression  String?       // legacy — emotion과 동기화
   background  String?       // 침대, 카페, 거리 등
   lighting    String?       // 자연광, 형광등, 촛불 등
   cameraAngle String?       // 셀카, 거울, 전신 등
@@ -124,6 +128,8 @@ model CharacterPhoto {
   pushLogs    PushLog[]
 
   @@index([characterId, category])
+  @@index([characterId, categorySlug])
+  @@index([characterId, categorySlug, emotion])
   @@index([characterId, timeOfDay])
 }
 

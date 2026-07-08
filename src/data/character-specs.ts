@@ -4,6 +4,7 @@
  */
 
 export interface CharacterVisualSpec {
+  slug: string;
   id: string;
   name: string;
   emoji: string;
@@ -24,6 +25,7 @@ export interface CharacterVisualSpec {
 
 export const CHARACTER_SPECS: CharacterVisualSpec[] = [
   {
+    slug: 'yuna',
     id: '00000000-0000-0000-0000-000000000001',
     name: '유나',
     emoji: '😊',
@@ -40,6 +42,7 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     scenes: ['캠퍼스', '카페 공부', '도서관', '아침 등교', '베이지 니트 셀카'],
   },
   {
+    slug: 'narin',
     id: '00000000-0000-0000-0000-000000000002',
     name: '나린',
     emoji: '😎',
@@ -57,6 +60,7 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     scenes: ['거울 셀카', '카페', '쇼핑', '오늘 머리했는데', '새침한 표정'],
   },
   {
+    slug: 'yunseo',
     id: '00000000-0000-0000-0000-000000000003',
     name: '윤서',
     emoji: '📚',
@@ -74,6 +78,7 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     scenes: ['비 오는 창가', '흰 셔츠', '독서', '차분한 셀카', '야근'],
   },
   {
+    slug: 'eunha',
     id: '00000000-0000-0000-0000-000000000004',
     name: '은하',
     emoji: '🎨',
@@ -90,6 +95,7 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     scenes: ['감성 카페', '브릿지 머리', 'V자 셀카', '엉뚱한 표정', '디저트'],
   },
   {
+    slug: 'jiyu',
     id: '00000000-0000-0000-0000-000000000005',
     name: '지유',
     emoji: '⛳',

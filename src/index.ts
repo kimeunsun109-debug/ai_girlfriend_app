@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { pushRouter } from './routes/push.routes.js';
 import { userRouter } from './routes/user.routes.js';
+import { photosRouter } from './routes/photos.routes.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/users', userRouter);
+app.use('/api/photos', photosRouter);
 app.use('/api/push', pushRouter);
 
 app.listen(PORT, () => {

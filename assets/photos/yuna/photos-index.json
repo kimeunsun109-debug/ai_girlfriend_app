@@ -1,0 +1,224 @@
+{
+  "character": "yuna",
+  "characterId": "00000000-0000-0000-0000-000000000001",
+  "updatedAt": "2026-07-08T04:53:51.264Z",
+  "totalCount": 14,
+  "photos": [
+    {
+      "id": "4305317e-8f40-44b3-a8a9-66cadc4bd587",
+      "character": "yuna",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "coffee",
+        "cafe"
+      ],
+      "filename": "91444de42876e6a3.jpg",
+      "relativePath": "yuna/coffee/91444de42876e6a3.jpg",
+      "contentHash": "91444de42876e6a3",
+      "importedAt": "2026-07-08T04:53:51.180Z"
+    },
+    {
+      "id": "56f4d2ab-ab88-460c-aa37-951cccb0f75e",
+      "character": "yuna",
+      "category": "tteokbokki",
+      "emotion": "excited",
+      "tags": [
+        "yuna",
+        "food",
+        "tteokbokki"
+      ],
+      "filename": "393a407e27fe9d42.jpg",
+      "relativePath": "yuna/tteokbokki/393a407e27fe9d42.jpg",
+      "contentHash": "393a407e27fe9d42",
+      "importedAt": "2026-07-08T04:53:51.186Z"
+    },
+    {
+      "id": "1bad3e53-edb7-41c3-ac04-ca836c48d103",
+      "character": "yuna",
+      "category": "hair",
+      "emotion": "shy",
+      "tags": [
+        "yuna",
+        "hair",
+        "salon",
+        "mirror"
+      ],
+      "filename": "6ad876ce59fc0862.jpg",
+      "relativePath": "yuna/hair/6ad876ce59fc0862.jpg",
+      "contentHash": "6ad876ce59fc0862",
+      "importedAt": "2026-07-08T04:53:51.193Z"
+    },
+    {
+      "id": "bd15f997-bd40-4284-bf8a-00f63ecafc76",
+      "character": "yuna",
+      "category": "rain",
+      "emotion": "loving",
+      "tags": [
+        "yuna",
+        "home",
+        "rainy",
+        "day"
+      ],
+      "filename": "577982c7db09f47c.jpg",
+      "relativePath": "yuna/rain/577982c7db09f47c.jpg",
+      "contentHash": "577982c7db09f47c",
+      "importedAt": "2026-07-08T04:53:51.201Z"
+    },
+    {
+      "id": "2c941ca7-f090-4b7c-b7bd-6b1a961fd2ff",
+      "character": "yuna",
+      "category": "nail",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "nail",
+        "art",
+        "hand"
+      ],
+      "filename": "f918f53ee3242943.jpg",
+      "relativePath": "yuna/nail/f918f53ee3242943.jpg",
+      "contentHash": "f918f53ee3242943",
+      "importedAt": "2026-07-08T04:53:51.207Z"
+    },
+    {
+      "id": "205fbcaa-1e41-43ff-bed3-34066936d232",
+      "character": "yuna",
+      "category": "morning",
+      "emotion": "sleepy",
+      "tags": [
+        "yuna",
+        "selfie",
+        "bed",
+        "morning"
+      ],
+      "filename": "67486135aa6b319a.jpg",
+      "relativePath": "yuna/morning/67486135aa6b319a.jpg",
+      "contentHash": "67486135aa6b319a",
+      "importedAt": "2026-07-08T04:53:51.214Z"
+    },
+    {
+      "id": "bbc33042-db4b-4922-9a6a-d7b6cb3bf9c8",
+      "character": "yuna",
+      "category": "weekend",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "weekend",
+        "out",
+        "sunny"
+      ],
+      "filename": "094fa0aa8f5cefb2.jpg",
+      "relativePath": "yuna/weekend/094fa0aa8f5cefb2.jpg",
+      "contentHash": "094fa0aa8f5cefb2",
+      "importedAt": "2026-07-08T04:53:51.221Z"
+    },
+    {
+      "id": "4973b0eb-3fe6-4e6a-b878-31edd2780f9d",
+      "character": "yuna",
+      "category": "overtime",
+      "emotion": "tired",
+      "tags": [
+        "yuna",
+        "work",
+        "overtime",
+        "desk"
+      ],
+      "filename": "15fc4612a7c520d2.jpg",
+      "relativePath": "yuna/overtime/15fc4612a7c520d2.jpg",
+      "contentHash": "15fc4612a7c520d2",
+      "importedAt": "2026-07-08T04:53:51.226Z"
+    },
+    {
+      "id": "3388ee50-6b90-46c2-8839-b35bf7690637",
+      "character": "yuna",
+      "category": "selfie",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "campus",
+        "selfie"
+      ],
+      "filename": "f39b903652c76021.jpg",
+      "relativePath": "yuna/selfie/f39b903652c76021.jpg",
+      "contentHash": "f39b903652c76021",
+      "importedAt": "2026-07-08T04:53:51.233Z"
+    },
+    {
+      "id": "23e76842-0a2d-4496-9f1f-43c8b75b84c1",
+      "character": "yuna",
+      "category": "happy",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "finger",
+        "heart"
+      ],
+      "filename": "97f13b4d416ca618.jpg",
+      "relativePath": "yuna/happy/97f13b4d416ca618.jpg",
+      "contentHash": "97f13b4d416ca618",
+      "importedAt": "2026-07-08T04:53:51.239Z"
+    },
+    {
+      "id": "e85089fd-55c6-4c77-8552-5fdce3f2f9a0",
+      "character": "yuna",
+      "category": "hair",
+      "emotion": "shy",
+      "tags": [
+        "yuna",
+        "hair",
+        "salon"
+      ],
+      "filename": "219b5ad346fad717.jpg",
+      "relativePath": "yuna/hair/219b5ad346fad717.jpg",
+      "contentHash": "219b5ad346fad717",
+      "importedAt": "2026-07-08T04:53:51.245Z"
+    },
+    {
+      "id": "f17d1a13-79fb-41fe-a7cd-2e0548ca9ae6",
+      "character": "yuna",
+      "category": "nail",
+      "emotion": "happy",
+      "tags": [
+        "yuna",
+        "nail",
+        "art"
+      ],
+      "filename": "aecdc211e1392727.jpg",
+      "relativePath": "yuna/nail/aecdc211e1392727.jpg",
+      "contentHash": "aecdc211e1392727",
+      "importedAt": "2026-07-08T04:53:51.250Z"
+    },
+    {
+      "id": "5aec61f9-e561-46f9-92fd-877a4177fa31",
+      "character": "yuna",
+      "category": "rain",
+      "emotion": "loving",
+      "tags": [
+        "yuna",
+        "rain",
+        "umbrella"
+      ],
+      "filename": "57cb821cf75a0f17.jpg",
+      "relativePath": "yuna/rain/57cb821cf75a0f17.jpg",
+      "contentHash": "57cb821cf75a0f17",
+      "importedAt": "2026-07-08T04:53:51.257Z"
+    },
+    {
+      "id": "2503f33b-3e9b-45f6-8075-18bd6f62e169",
+      "character": "yuna",
+      "category": "weekend",
+      "emotion": "sad",
+      "tags": [
+        "yuna",
+        "sad",
+        "pouty"
+      ],
+      "filename": "a910e12f188e05e2.jpg",
+      "relativePath": "yuna/weekend/a910e12f188e05e2.jpg",
+      "contentHash": "a910e12f188e05e2",
+      "importedAt": "2026-07-08T04:53:51.263Z"
+    }
+  ]
+}

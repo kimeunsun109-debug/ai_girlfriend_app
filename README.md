@@ -71,7 +71,8 @@ src/
 │   ├── followup.service.ts       # 후속 반응 시나리오
 │   ├── analytics.service.ts      # 데이터 분석
 │   └── push-notification.service.ts
-├── routes/          # REST API
+├── lib/photo-catalog/  # 사진 import·인덱스·검색
+├── routes/             # REST API (users, push, photos)
 ├── workers/         # 백그라운드 스케줄러
 └── utils/           # 유틸리티
 prisma/
@@ -133,16 +134,50 @@ npm run worker
 
 ## 캐릭터 사진 시스템
 
-각 캐릭터당 약 1,000장의 고품질 자연스러운 사진이 필요합니다.
+캐릭터당 1,000장 이상의 사진을 **slug/category** 구조로 관리합니다.
 상세 내용은 **[docs/PHOTO_PUSH.md](docs/PHOTO_PUSH.md)** 를 참고하세요.
 
-### 로컬 이미지 import (Windows)
+### 폴더 구조
+
+```
+assets/photos/
+  yuna/
+    photos-index.json
+    hair/
+    coffee/
+    rain/
+  narin/
+  ...
+```
+
+### Import (픽미톡 ai 폴더)
 
 ```bash
-LOCAL_PHOTOS_DIR="C:/Users/user/OneDrive/Desktop/픽미톡 ai" \
-CHARACTER_ID="00000000-0000-0000-0000-000000000001" \
-npm run photos:import
+# Windows 로컬
+LOCAL_PHOTOS_DIR="C:/Users/user/OneDrive/Desktop/픽미톡 ai" npm run photos:import
+
+# 경로 인자
+npm run photos:import -- "./픽미톡 ai"
 ```
+
+- 지원: jpg, jpeg, png, webp
+- 중복·손상·미지원 파일 자동 제외
+- 폴더/파일명 키워드로 상황 자동 분류
+
+### 기존 에셋 마이그레이션
+
+```bash
+npm run photos:migrate
+```
+
+### 사진 검색 API
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/photos/search?character=yuna&category=hair&emotion=shy` | 상황별 사진 |
+| GET | `/api/photos/stats/yuna` | 캐릭터 통계 |
+
+Photo Push는 **캐릭터 + 상황 + 감정** 기반으로 사진을 선택합니다 (전체 랜덤 ❌).
 
 ### Web Push
 

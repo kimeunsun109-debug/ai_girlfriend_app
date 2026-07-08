@@ -61,20 +61,22 @@ src/
 ├── data/photo-message-templates.ts # 상황별 메시지
 ├── services/
 │   ├── scheduler.service.ts       # 일정 생성·실행
-│   ├── photo-selector.service.ts  # 사진/메시지 선택
+│   ├── photo-selector.service.ts  # 캐릭터+상황+감정 사진 선택
 │   ├── engagement.service.ts      # 참여도 기반 빈도
 │   ├── followup.service.ts        # 후속 반응
 │   ├── push-notification.service.ts
 │   └── web-push.service.ts        # Web Push 전용
-├── routes/push.routes.ts
+├── lib/photo-catalog/             # 사진 카탈로그 (import·검색·선택)
+├── routes/photos.routes.ts        # 사진 검색 API
 ├── workers/push-scheduler.worker.ts
 scripts/
-├── import-local-photos.ts         # 로컬 이미지 일괄 등록
+├── photos-import.ts               # 픽미톡 ai 폴더 일괄 import
+├── migrate-photo-folders.ts       # UUID → slug/category 마이그레이션
 └── generate-vapid-keys.ts         # VAPID 키 생성
 public/
 ├── sw.js                          # Service Worker
 └── push-client.js                 # 구독 헬퍼
-assets/photos/                     # 로컬/CDN 사진 저장
+assets/photos/                     # slug/category 사진 + 메타데이터
 docs/PHOTO_PUSH.md                 # 이 문서
 ```
 
@@ -253,91 +255,172 @@ POST /api/push/device-token
 
 ### 5.1 목표
 
-- 캐릭터당 **약 1,000장** 고품질 자연스러운 사진
-- 실제 휴대폰 셀카 느낌 (AI 티 최소화)
-- 표정·배경·조명·구도·의상·계절·날씨·시간대 다양화
+- 캐릭터당 **약 1,000장** (전체 20,000장+) 고품질 자연스러운 사진
+- **slug/category** 폴더 구조로 장기 운영
+- 메타데이터 기반 검색 (랜덤 전체 선택 ❌ → 캐릭터 + 상황 + 감정 ✅)
 
-### 5.2 참고 이미지 (로컬 예시)
+### 5.2 폴더 구조
+
+```
+assets/photos/
+├── yuna/
+│   ├── photos-index.json
+│   ├── hair/
+│   ├── coffee/
+│   ├── rain/
+│   └── ...
+├── narin/
+├── yunseo/
+├── eunha/
+└── jiyu/
+```
+
+| 경로 | 설명 |
+|------|------|
+| `{slug}/photos-index.json` | 캐릭터 전체 사진 메타데이터 |
+| `{slug}/{category}/{hash}.jpg` | 실제 이미지 (SHA-256 앞 16자 파일명) |
+| `{slug}/{category}/{hash}.photo.json` | 개별 사진 메타 (선택적 sidecar) |
+
+### 5.3 Import (`npm run photos:import`)
 
 Windows 로컬 경로 예시:
 
 ```
 C:\Users\user\OneDrive\Desktop\픽미톡 ai\
+  유나/
+    hair/
+      photo1.jpg
+    coffee/
+  나린/
+    nail/
+  hair_01.jpg   ← 파일명으로도 자동 분류
 ```
-
-클라우드 환경에서는 직접 접근 불가. 아래 방법으로 등록:
-
-**방법 A: import 스크립트 (로컬 PC에서 실행)**
 
 ```bash
-# 폴더 구조 예시
-# 픽미톡 ai/
-#   수아/
-#     아침_셀카_01.jpg
-#     커피_02.jpg
-#     머리_03.jpg
+# 환경 변수
+LOCAL_PHOTOS_DIR="C:/Users/user/OneDrive/Desktop/픽미톡 ai" npm run photos:import
 
-LOCAL_PHOTOS_DIR="C:/Users/user/OneDrive/Desktop/픽미톡 ai" \
-CHARACTER_ID="00000000-0000-0000-0000-000000000001" \
-npx tsx scripts/import-local-photos.ts
+# CLI 인자
+npm run photos:import -- "./픽미톡 ai"
 ```
 
-파일명 규칙: `{카테고리키워드}_{번호}.jpg`
+**동작**
 
-| 키워드 | PhotoCategory |
+| 항목 | 처리 |
+|------|------|
+| 지원 확장자 | `.jpg`, `.jpeg`, `.png`, `.webp` |
+| 중복 | `contentHash` 기준 자동 건너뛰기 |
+| 손상 이미지 | magic-byte 검증 실패 시 제외 |
+| 미지원 확장자 | 제외 |
+| 자동 분류 | 폴더명/파일명 키워드 → category slug |
+
+**자동 분류 예시**
+
+| 키워드 | category slug |
 |--------|---------------|
-| 아침, 침대, 기상 | SELFIE_BED |
-| 커피, 카페 | COFFEE_CAFE |
-| 야근, 책상 | WORK_OVERTIME |
-| 퇴근 | WORK_LEAVE |
-| 머리, 미용실 | HAIR_SALON |
-| 네일 | NAIL_ART |
-| 술 | DRINKING |
-| 떡볶이 | FOOD_TTEOKBOKKI |
-| 운동, 헬스 | EXERCISE_GYM |
-| 주말, 놀러 | WEEKEND_OUT |
-| 셀카 | SELFIE_GENERAL |
+| hair, salon, 머리 | `hair` |
+| coffee, cafe | `coffee` |
+| tteok, tteokbokki | `tteokbokki` |
+| nail | `nail` |
+| rain | `rain` |
+| drink, alcohol | `alcohol` |
+| bed, morning | `morning` |
+| game, pc | `game` |
 
-**방법 B: CDN URL 직접 등록**
-
-`prisma/seed.ts` 또는 Admin API로 `CharacterPhoto` 레코드 생성.
-
-### 5.3 파이프라인 단계
+**완료 리포트 예시**
 
 ```
-[참고 이미지/프롬프트] → [생성/촬영] → [품질 검수] → [썸네일] → [CDN 업로드] → [DB 등록]
+====================================
+Import Complete
+====================================
+
+Yuna    : 214장
+Narin   : 201장
+...
+
+Duplicate : 35장
+Skipped   : 4장
+
+Total Imported : 1007장
+====================================
+```
+
+### 5.4 기존 에셋 마이그레이션
+
+레포에 포함된 UUID 폴더(`00000000-...`) 샘플을 slug 구조로 변환:
+
+```bash
+npm run db:seed          # 캐릭터 slug 등록
+npm run photos:migrate   # assets/photos UUID → yuna/hair/ ...
+```
+
+### 5.5 메타데이터 스키마
+
+`photos-index.json` (캐릭터당 1개):
+
+```json
+{
+  "character": "yuna",
+  "characterId": "00000000-0000-0000-0000-000000000001",
+  "totalCount": 214,
+  "photos": [{
+    "id": "uuid",
+    "character": "yuna",
+    "category": "hair",
+    "emotion": "shy",
+    "tags": ["미용실", "셀카"],
+    "filename": "6ad876ce59fc0862.jpg",
+    "relativePath": "yuna/hair/6ad876ce59fc0862.jpg",
+    "contentHash": "6ad876ce59fc0862"
+  }]
+}
+```
+
+### 5.6 사진 선택 (Photo Push)
+
+`photo-selector.service.ts`는 **랜덤 전체 선택을 하지 않습니다.**
+
+1. 요일/스케줄 → `PhotoCategory` 결정
+2. 카테고리 + contentStyle → `emotion` 추론
+3. `PhotoCatalogRepository.selectWithFallback(character, categorySlug, emotion)` 호출
+4. 카탈로그 인덱스 우선, DB fallback
+
+예: 유나 + `hair` + `happy` → `yuna/hair/` 중 emotion 일치 우선, 없으면 category만 매칭
+
+### 5.7 사진 검색 API
+
+```http
+GET /api/photos/search?character=yuna&category=hair&emotion=shy
+GET /api/photos/stats/yuna
+```
+
+### 5.8 파이프라인 단계
+
+```
+[픽미톡 ai 폴더] → [photos:import] → [slug/category + 메타] → [DB 동기화] → [Photo Push]
 ```
 
 | 단계 | 도구 | 기준 |
 |------|------|------|
-| 품질 검수 | 수동 + AI 스코어 | AI 티, 손가락 왜곡, NSFW |
-| 중복 감지 | contentHash (pHash) | 유사도 90% 이상 거부 |
-| 썸네일 | 400px WebP | 푸시 미리보기용 |
-| 인벤토리 | Admin API | 카테고리별 최소 20장 |
+| 품질 검수 | magic-byte + 수동 | 손상 파일 제외 |
+| 중복 감지 | SHA-256 contentHash | 동일 파일 건너뛰기 |
+| 인덱스 | photos-index.json | 파일시스템 기반 빠른 검색 |
+| DB | CharacterPhoto | 푸시 쿨다운·히스토리 연동 |
 
-### 5.4 CharacterPhoto 스키마
+### 5.9 CharacterPhoto 스키마 (요약)
 
 ```prisma
 model CharacterPhoto {
-  id           String
-  characterId  String
-  url          String        // 원본 CDN URL
-  thumbnailUrl String?       // 푸시용 썸네일
   category     PhotoCategory
-  tags         String[]
-  expression   String?       // 기쁨, 졸림, 슬픔...
-  background   String?       // 침대, 카페, 거리...
-  lighting     String?
-  cameraAngle  String?
-  timeOfDay    TimeOfDay?
-  season       Season?
-  weather      Weather?
+  categorySlug String?       // hair, coffee, rain ...
+  relativePath String?       // yuna/hair/abc.jpg
+  emotion      String?        // happy, sad, sleepy ...
   contentHash  String?       // 중복 감지
-  status       PhotoStatus   // PENDING_REVIEW | ACTIVE | REJECTED
+  ...
 }
 ```
 
-### 5.5 인벤토리 최소 기준
+### 5.10 인벤토리 최소 기준
 
 | 구분 | 최소 장수 |
 |------|-----------|
@@ -345,11 +428,11 @@ model CharacterPhoto {
 | 캐릭터당 (운영 가능) | 300장 |
 | 캐릭터당 (목표) | 1,000장 |
 
-인벤토리 부족 시 `photo-selector.service`가 fallback 후 없으면 푸시 `CANCELLED`.
+인벤토리 부족 시 fallback category 시도 후 없으면 푸시 `CANCELLED`.
 
-### 5.6 샘플 에셋 (`assets/photos/`)
+### 5.11 샘플 에셋
 
-레포에 포함된 샘플 이미지는 개발/데모용입니다. 프로덕션은 CDN으로 서빙.
+레포에 5캐릭터 × slug/category 구조 샘플(42장) 포함. 프로덕션은 CDN + import 파이프라인으로 확장.
 
 ---
 
@@ -405,6 +488,11 @@ model CharacterPhoto {
 | POST | `/api/users/:userId/characters` | 캐릭터 연결 |
 | POST | `/api/users/:userId/special-days` | 특별한 날 |
 
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/photos/search` | 캐릭터+상황+감정 사진 검색 |
+| GET | `/api/photos/stats/:characterSlug` | 캐릭터별 카테고리 통계 |
+
 ### 푸시
 
 | Method | Endpoint | 설명 |
@@ -443,7 +531,9 @@ model CharacterPhoto {
 | `VAPID_SUBJECT` | Web | mailto: 또는 https:// URL |
 | `FIREBASE_PROJECT_ID` | FCM | Firebase 프로젝트 |
 | `FIREBASE_CLIENT_EMAIL` | FCM | 서비스 계정 |
-| `FIREBASE_PRIVATE_KEY` | FCM | 서비스 계정 키 |
+| `LOCAL_PHOTOS_DIR` | | 픽미톡 ai import 소스 경로 |
+| `PHOTOS_IMPORT_DIR` | | import 소스 경로 (대체) |
+| `PHOTOS_SKIP_DB_SYNC` | | `1`이면 파일+인덱스만 (DB 없이 테스트) |
 
 ---
 
@@ -478,6 +568,7 @@ cp .env.example .env
 npx tsx scripts/generate-vapid-keys.ts  # 키를 .env에 붙여넣기
 npm run db:push
 npm run db:seed
+npm run photos:migrate   # 샘플 에셋 slug 구조 변환
 npm run dev        # API
 npm run worker     # 스케줄러
 ```
@@ -496,14 +587,16 @@ npm run worker     # 스케줄러
 - [x] 분석 API
 - [x] 100일 기념일 감지
 - [x] Web Push (VAPID, 구독 API, Service Worker)
-- [x] 로컬 사진 import 스크립트
+- [x] 로컬 사진 import (`npm run photos:import`)
+- [x] slug/category 사진 카탈로그 + 메타데이터
+- [x] 캐릭터+상황+감정 기반 사진 선택
 - [x] 5캐릭터 비주얼 스펙 (`docs/캐릭터예시_사진.md`)
 
 ### 예정
 
 - [ ] BullMQ 큐 연동
 - [ ] AI 대량 생성 파이프라인 (1,000장/캐릭터)
-- [ ] pHash 중복 감지
+- [ ] pHash 유사 이미지 감지
 - [ ] Admin 인벤토리 대시보드
 - [ ] 모바일 앱 SDK 연동
 

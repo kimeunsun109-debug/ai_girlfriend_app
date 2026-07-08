@@ -1,0 +1,103 @@
+{
+  "character": "yunseo",
+  "characterId": "00000000-0000-0000-0000-000000000003",
+  "updatedAt": "2026-07-08T04:53:51.340Z",
+  "totalCount": 6,
+  "photos": [
+    {
+      "id": "82d82cea-abd8-4ce7-acde-cfd69fafbefd",
+      "character": "yunseo",
+      "category": "rain",
+      "emotion": "loving",
+      "tags": [
+        "yunseo",
+        "home",
+        "rainy",
+        "day"
+      ],
+      "filename": "577982c7db09f47c.jpg",
+      "relativePath": "yunseo/rain/577982c7db09f47c.jpg",
+      "contentHash": "577982c7db09f47c",
+      "importedAt": "2026-07-08T04:53:51.315Z"
+    },
+    {
+      "id": "dd4ede64-4b90-4fdd-8f3e-eed7923eac5f",
+      "character": "yunseo",
+      "category": "overtime",
+      "emotion": "tired",
+      "tags": [
+        "yunseo",
+        "work",
+        "overtime",
+        "desk"
+      ],
+      "filename": "15fc4612a7c520d2.jpg",
+      "relativePath": "yunseo/overtime/15fc4612a7c520d2.jpg",
+      "contentHash": "15fc4612a7c520d2",
+      "importedAt": "2026-07-08T04:53:51.321Z"
+    },
+    {
+      "id": "1ad34d36-ea55-4a5c-96f3-039aa49bc6c2",
+      "character": "yunseo",
+      "category": "rain",
+      "emotion": "loving",
+      "tags": [
+        "yunseo",
+        "yoonseo",
+        "rainy",
+        "window"
+      ],
+      "filename": "325a9d5ed42684e6.jpg",
+      "relativePath": "yunseo/rain/325a9d5ed42684e6.jpg",
+      "contentHash": "325a9d5ed42684e6",
+      "importedAt": "2026-07-08T04:53:51.327Z"
+    },
+    {
+      "id": "0aa78587-b23e-40ca-9a1d-471775af2642",
+      "character": "yunseo",
+      "category": "reading",
+      "emotion": "neutral",
+      "tags": [
+        "yunseo",
+        "yoonseo",
+        "reading"
+      ],
+      "filename": "cf1f4e9a5b8aa216.jpg",
+      "relativePath": "yunseo/reading/cf1f4e9a5b8aa216.jpg",
+      "contentHash": "cf1f4e9a5b8aa216",
+      "importedAt": "2026-07-08T04:53:51.332Z"
+    },
+    {
+      "id": "a0476477-20a0-43d0-b849-189f915e7d90",
+      "character": "yunseo",
+      "category": "sad",
+      "emotion": "sad",
+      "tags": [
+        "yunseo",
+        "yoonseo",
+        "waiting",
+        "sad"
+      ],
+      "filename": "619da5a35a61e90c.jpg",
+      "relativePath": "yunseo/sad/619da5a35a61e90c.jpg",
+      "contentHash": "619da5a35a61e90c",
+      "importedAt": "2026-07-08T04:53:51.335Z"
+    },
+    {
+      "id": "86c34de9-41ea-4a5c-be7c-2c34f3388e17",
+      "character": "yunseo",
+      "category": "overtime",
+      "emotion": "tired",
+      "tags": [
+        "yunseo",
+        "yoonseo",
+        "work",
+        "leave"
+      ],
+      "filename": "7fe6592ca064238b.jpg",
+      "relativePath": "yunseo/overtime/7fe6592ca064238b.jpg",
+      "contentHash": "7fe6592ca064238b",
+      "importedAt": "2026-07-08T04:53:51.340Z"
+    }
+  ]
+}
