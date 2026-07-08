@@ -19,6 +19,7 @@ import { buildPhotoUrl } from '../lib/photo-catalog/index-manager.js';
 import { CHARACTER_SLUG_MAP } from '../lib/photo-catalog/types.js';
 import type { PhotoEmotion } from '../lib/photo-catalog/types.js';
 import { slugToPrismaCategory } from '../lib/photo-catalog/category-mapper.js';
+import { adaptivePersonalityEngine } from '../lib/adaptive-personality/index.js';
 import {
   photoPushSelector,
   memoryReminderEngine,
@@ -271,6 +272,7 @@ export class PhotoSelectorService {
       if (!selected) return null;
 
       const category = slugToPrismaCategory(selected.categorySlug);
+      const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
       let message =
         options.eventMessage ??
         options.memoryReminder ??
@@ -290,6 +292,7 @@ export class PhotoSelectorService {
         uc?.relationshipLevel ?? 1,
         user.name
       );
+      message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name);
       message = relationshipEventEngine.styleMessage(
         message,
         user.name,

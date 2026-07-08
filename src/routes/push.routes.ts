@@ -7,6 +7,7 @@ import { followUpService } from '../services/followup.service.js';
 import { engagementService } from '../services/engagement.service.js';
 import { webPushService } from '../services/web-push.service.js';
 import { Platform } from '@prisma/client';
+import { adaptivePersonalityEngine, preferenceLearningEngine, habitLearningEngine } from '../lib/adaptive-personality/index.js';
 
 export const pushRouter = Router();
 
@@ -91,6 +92,17 @@ pushRouter.post('/device-token', async (req: Request, res: Response) => {
 pushRouter.post('/click/:pushLogId', async (req: Request, res: Response) => {
   const pushLogId = param(req.params.pushLogId);
   await analyticsService.recordClick(pushLogId);
+
+  const pushLog = await prisma.pushLog.findUnique({ where: { id: pushLogId } });
+  if (pushLog) {
+    const uc = await prisma.userCharacter.findFirst({
+      where: { userId: pushLog.userId, characterId: pushLog.characterId },
+    });
+    if (uc) {
+      await preferenceLearningEngine.learnReaction(uc.id, 'photo_click', 'like');
+    }
+  }
+
   res.json({ success: true });
 });
 
@@ -98,6 +110,17 @@ pushRouter.post('/click/:pushLogId', async (req: Request, res: Response) => {
 pushRouter.post('/view/:pushLogId', async (req: Request, res: Response) => {
   const pushLogId = param(req.params.pushLogId);
   await analyticsService.recordPhotoView(pushLogId);
+
+  const pushLog = await prisma.pushLog.findUnique({ where: { id: pushLogId } });
+  if (pushLog) {
+    const uc = await prisma.userCharacter.findFirst({
+      where: { userId: pushLog.userId, characterId: pushLog.characterId },
+    });
+    if (uc) {
+      await preferenceLearningEngine.learnReaction(uc.id, 'photo_view', 'like');
+    }
+  }
+
   res.json({ success: true });
 });
 
@@ -115,21 +138,65 @@ pushRouter.post('/reply/:pushLogId', async (req: Request, res: Response) => {
   const { userCharacterId, content } = parsed.data;
 
   await followUpService.handleUserReply(pushLogId, userCharacterId, content);
+
+  if (/(고마워|예뻐|좋아|멋져|사랑)/.test(content)) {
+    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+      type: 'compliment',
+      reason: '사용자 칭찬',
+      value: content,
+    });
+  }
+  if (/(ㅋㅋ|장난|놀려)/.test(content)) {
+    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+      type: 'playful_user',
+      reason: '사용자 장난 반응',
+      value: content,
+    });
+  }
+  if (/(힘내|괜찮아|위로)/.test(content)) {
+    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+      type: 'comforting_user',
+      reason: '사용자 위로',
+      value: content,
+      specialEvent: true,
+    });
+  }
+
   res.json({ success: true });
 });
 
 // ─── 좋아요 ─────────────────────────────────────────────────
 pushRouter.post('/like/:pushLogId', async (req: Request, res: Response) => {
-  await analyticsService.recordLike(param(req.params.pushLogId));
+  const pushLogId = param(req.params.pushLogId);
+  await analyticsService.recordLike(pushLogId);
+
+  const pushLog = await prisma.pushLog.findUnique({ where: { id: pushLogId } });
+  if (pushLog) {
+    const uc = await prisma.userCharacter.findFirst({
+      where: { userId: pushLog.userId, characterId: pushLog.characterId },
+    });
+    if (uc) await preferenceLearningEngine.learnReaction(uc.id, 'like_push', 'like');
+  }
+
   res.json({ success: true });
 });
 
 // ─── 사용자 활동 기록 ───────────────────────────────────────
 pushRouter.post('/activity/:userId', async (req: Request, res: Response) => {
+  const userId = param(req.params.userId);
   await prisma.user.update({
-    where: { id: param(req.params.userId) },
+    where: { id: userId },
     data: { lastActiveAt: new Date() },
   });
+
+  const hour = new Date().getHours();
+  const uc = await prisma.userCharacter.findFirst({ where: { userId, isActive: true } });
+  if (uc) {
+    if (hour === 22) await habitLearningEngine.learn(uc.id, 'login_22h', String(hour));
+    else if (hour >= 21) await habitLearningEngine.learn(uc.id, 'late_night_login', String(hour));
+    else await habitLearningEngine.learn(uc.id, `login_${hour}h`, String(hour));
+  }
+
   res.json({ success: true });
 });
 

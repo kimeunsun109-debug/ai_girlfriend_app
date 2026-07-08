@@ -108,6 +108,12 @@ model UserCharacter {
   memoryAlbumItems    MemoryAlbumItem[]
   relationshipRewards RelationshipReward[]
   stageHistory        RelationshipStageHistory[]
+  personalityDNA      PersonalityDNA[]
+  personalityHistory  PersonalityHistory[]
+  habitLearning       HabitLearning[]
+  userPreferences     UserPreference[]
+  growthEvents        GrowthEvent[]
+  adaptiveMemories    AdaptiveMemory[]
 
   @@unique([userId, characterId])
   @@index([userId])
@@ -761,4 +767,126 @@ model RelationshipStage {
   maxAffection Float
   speechStyle String
   rewards     String[] @default([])
+}
+
+
+// ─── Adaptive Personality: DNA ─────────────────────────────
+model PersonalityDNA {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait
+  coreValue          Int           // 캐릭터 본래 성격 (변하지 않음)
+  adaptiveValue      Int           // 적응 변화 포함 값 (0~100)
+  confidence         Float         @default(0.7)
+  lastUpdatedReason  String?
+  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime      @default(now())
+
+  @@unique([userCharacterId, traitKey])
+  @@index([userCharacterId, adaptiveValue])
+}
+
+enum PersonalityTrait {
+  AEGYO
+  PLAYFULNESS
+  TALKATIVENESS
+  JEALOUSY
+  CURIOSITY
+  CARE
+  SENSITIVITY
+  LOGIC
+  CONFIDENCE
+  ACTIVITY
+  INDEPENDENCE
+  LEADERSHIP
+  SHYNESS
+  OPTIMISM
+  EMPATHY
+  EXPRESSIVENESS
+  ROMANTIC
+  HUMOR
+  ADVENTURE
+  ATTACHMENT
+}
+
+// ─── Adaptive Personality: 변화 이력 ───────────────────────
+model PersonalityHistory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait
+  previousValue      Int
+  delta              Int
+  newValue           Int
+  reason             String
+  sourceType         String        // compliment, late_reply, habit, event ...
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, createdAt])
+  @@index([userCharacterId, traitKey])
+}
+
+// ─── Adaptive Personality: 습관 학습 ───────────────────────
+model HabitLearning {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  habitKey           String        // login_22h, coffee_topic, late_night_snack
+  value              String?
+  score              Float         @default(0)
+  occurrences        Int           @default(0)
+  lastSeenAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([userCharacterId, habitKey])
+  @@index([userCharacterId, score])
+}
+
+// ─── Adaptive Personality: 사용자 선호 ──────────────────────
+model UserPreference {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  preferenceKey      String        // selfie, cafe, humor, workout
+  likesScore         Float         @default(0)
+  dislikesScore      Float         @default(0)
+  confidence         Float         @default(0.5)
+  evidenceCount      Int           @default(0)
+  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime      @default(now())
+
+  @@unique([userCharacterId, preferenceKey])
+  @@index([userCharacterId, likesScore])
+}
+
+// ─── Adaptive Personality: 성장 이벤트 ──────────────────────
+model GrowthEvent {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  title              String
+  description        String
+  traitKey           PersonalityTrait?
+  delta              Int?
+  emotionalIntensity Float         @default(0.5)
+  happenedAt         DateTime      @default(now())
+  metadata           Json?
+
+  @@index([userCharacterId, happenedAt])
+}
+
+// ─── Adaptive Personality: 변화 이유 기억 ───────────────────
+model AdaptiveMemory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait?
+  memoryType         String        // dna_reflection, habit, preference
+  content            String
+  trigger            String?
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, createdAt])
 }

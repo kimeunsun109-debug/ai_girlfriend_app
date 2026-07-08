@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PickMeTalk — 성장한 유나</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; background: #fff7fb; color: #222; }
+    header { background: linear-gradient(135deg,#ff8fab,#c9184a); color: white; padding: 1.2rem; }
+    h1 { margin: 0; font-size: 1.3rem; }
+    .panel { background: white; margin: 1rem; padding: 1rem; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .row { margin-bottom: .75rem; }
+    .label { font-size: .82rem; color: #666; margin-bottom: .2rem; }
+    .bar { background: #f3f3f3; height: 10px; border-radius: 8px; overflow: hidden; }
+    .bar > div { height: 100%; background: linear-gradient(90deg,#ff8fab,#ff4d6d); }
+    input, button { width: 100%; padding: .6rem; border-radius: 8px; border: 1px solid #ddd; }
+    button { border: none; background: #c9184a; color: white; margin-top: .5rem; }
+    .item { border-bottom: 1px dashed #eee; padding: .6rem 0; }
+    .muted { color: #888; font-size: .82rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌱 성장한 유나</h1>
+    <div id="subtitle" class="muted" style="color:#ffe5ec"></div>
+  </header>
+
+  <div class="panel">
+    <div class="label">userCharacterId</div>
+    <input id="ucId" placeholder="userCharacterId 입력" />
+    <button onclick="loadAll()">불러오기</button>
+  </div>
+
+  <div class="panel">
+    <h3>Personality DNA</h3>
+    <div id="dna"></div>
+  </div>
+
+  <div class="panel">
+    <h3>습관 학습</h3>
+    <div id="habits"></div>
+  </div>
+
+  <div class="panel">
+    <h3>선호 학습</h3>
+    <div id="prefs"></div>
+  </div>
+
+  <div class="panel">
+    <h3>최근 성장</h3>
+    <div id="growth"></div>
+  </div>
+
+  <script>
+    const ucInput = document.getElementById('ucId');
+    ucInput.value = localStorage.getItem('pickme_ucId') || '';
+
+    async function loadAll() {
+      const ucId = ucInput.value.trim();
+      if (!ucId) return;
+      localStorage.setItem('pickme_ucId', ucId);
+
+      const [pRes, prefRes, histRes] = await Promise.all([
+        fetch(`/api/personality?userCharacterId=${ucId}`),
+        fetch(`/api/preferences?userCharacterId=${ucId}`),
+        fetch(`/api/personality/history?userCharacterId=${ucId}`),
+      ]);
+
+      const personality = await pRes.json();
+      const prefs = await prefRes.json();
+      const history = await histRes.json();
+
+      document.getElementById('subtitle').textContent =
+        `${personality.character || '캐릭터'} · 관계 Lv${personality.stageLevel || 1}`;
+
+      renderDna(personality.dna || []);
+      renderHabits(prefs.habits || []);
+      renderPrefs(prefs.preferences || []);
+      renderGrowth(history.growth || history.history || []);
+    }
+
+    function renderDna(dna) {
+      const root = document.getElementById('dna');
+      if (!dna.length) return root.innerHTML = '<p class="muted">데이터 없음</p>';
+      root.innerHTML = dna.map(d => `
+        <div class="row">
+          <div class="label">${d.label} · ${d.adaptiveValue} <span class="muted">(기본 ${d.coreValue}, 변화 ${d.delta > 0 ? '+' : ''}${d.delta})</span></div>
+          <div class="bar"><div style="width:${d.adaptiveValue}%"></div></div>
+        </div>
+      `).join('');
+    }
+
+    function renderHabits(items) {
+      const root = document.getElementById('habits');
+      if (!items.length) return root.innerHTML = '<p class="muted">아직 학습된 습관이 없어요</p>';
+      root.innerHTML = items.slice(0, 8).map(h => `
+        <div class="item"><b>${h.habitKey}</b> · score ${h.score.toFixed(1)}<br/><span class="muted">${h.occurrences}회</span></div>
+      `).join('');
+    }
+
+    function renderPrefs(items) {
+      const root = document.getElementById('prefs');
+      if (!items.length) return root.innerHTML = '<p class="muted">아직 학습된 선호가 없어요</p>';
+      root.innerHTML = items.slice(0, 8).map(p => `
+        <div class="item"><b>${p.preferenceKey}</b><br/><span class="muted">좋아함 ${p.likesScore.toFixed(1)} / 싫어함 ${p.dislikesScore.toFixed(1)}</span></div>
+      `).join('');
+    }
+
+    function renderGrowth(items) {
+      const root = document.getElementById('growth');
+      if (!items.length) return root.innerHTML = '<p class="muted">성장 이력이 없어요</p>';
+      root.innerHTML = items.slice(0, 12).map(g => `
+        <div class="item"><b>${g.title || g.reason}</b><br/><span class="muted">${g.description || ''}</span></div>
+      `).join('');
+    }
+
+    if (ucInput.value) loadAll();
+  </script>
+</body>
+</html>

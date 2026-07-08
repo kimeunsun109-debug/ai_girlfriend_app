@@ -7,6 +7,7 @@ import { dailyRoutineGenerator } from './daily-routine-generator.js';
 import { randomEventGenerator } from './random-event-generator.js';
 import { emotionStateManager } from './emotion-state-manager.js';
 import { relationshipEventEngine } from './relationship-event-engine.js';
+import { adaptivePersonalityEngine } from '../adaptive-personality/index.js';
 import { memoryReminderEngine } from './memory-reminder-engine.js';
 import { notificationQueue } from './notification-queue.js';
 import {
@@ -79,12 +80,15 @@ export class LivingAIScheduler {
     }
 
     // 3. 발송 횟수 (0~2, 불규칙)
+    const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
+
     let pushCount = await this.decidePushCount(
       userId,
       uc.affectionScore,
       rolls,
       options.hasSpecialDay ?? false,
-      dayOfWeek
+      dayOfWeek,
+      dnaMap
     );
 
     if (pushCount === 0) {
@@ -270,7 +274,8 @@ export class LivingAIScheduler {
     affectionScore: number,
     rolls: ReturnType<typeof randomEventGenerator.rollDailyProbabilities>,
     hasSpecialDay: boolean,
-    dayOfWeek: number
+    dayOfWeek: number,
+    dnaMap: Partial<Record<import('@prisma/client').PersonalityTrait, number>>
   ): Promise<number> {
     if (await engagementService.shouldTakeCooldown(userId)) return 0;
 
@@ -291,6 +296,9 @@ export class LivingAIScheduler {
     if (behavior.photoBonus > 0 && Math.random() < behavior.photoBonus) {
       baseCount = Math.min(PUSH_CONFIG.MAX_DAILY_PUSHES, baseCount + 1);
     }
+
+    const bonus = adaptivePersonalityEngine.pushBonus(dnaMap);
+    if (Math.random() < bonus) baseCount = Math.min(PUSH_CONFIG.MAX_DAILY_PUSHES, baseCount + 1);
 
     return Math.min(baseCount, PUSH_CONFIG.MAX_DAILY_PUSHES + (hasSpecialDay ? 1 : 0));
   }

@@ -199,6 +199,24 @@ GET /api/journey?userCharacterId=
 GET /api/album?userCharacterId=
 ```
 
+## Adaptive Personality (같은 캐릭터, 함께 성장)
+
+Core Personality는 유지하고, DNA가 천천히 적응합니다. 상세: **[docs/ADAPTIVE_PERSONALITY.md](docs/ADAPTIVE_PERSONALITY.md)**
+
+- 20개 Personality DNA (0~100)
+- Habit/Preference Learning
+- Growth Timeline + Adaptive Memory
+- 사용자별 다른 말투/행동 진화
+
+```bash
+GET /api/personality?userCharacterId=
+GET /api/personality/dna?userCharacterId=
+GET /api/personality/history?userCharacterId=
+POST /api/personality/update
+GET /api/preferences?userCharacterId=
+# UI: /personality.html
+```
+
 ### Web Push
 
 ```bash

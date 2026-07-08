@@ -11,6 +11,7 @@ import {
   memoryEventEngine,
   dynamicConversationService,
 } from '../lib/relationship-journey/index.js';
+import { adaptivePersonalityEngine } from '../lib/adaptive-personality/index.js';
 import {
   randomPick,
   personalizeMessage,
@@ -205,6 +206,20 @@ export class FollowUpService {
       userCharacterId,
       replySentiment: sentiment,
     });
+    if (isLateReply) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'late_reply',
+        reason: '답장이 늦었어',
+        value: content,
+      });
+    }
+    if (sentiment === 'positive' && /(예뻐|좋아|최고|사랑)/.test(content)) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'photo_compliment',
+        reason: '사진 칭찬',
+        value: content,
+      });
+    }
 
     const uc = await prisma.userCharacter.findUnique({
       where: { id: userCharacterId },
