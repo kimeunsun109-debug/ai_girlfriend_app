@@ -42,7 +42,7 @@ export class PushSchedulerService {
     timezone: string;
     birthday: Date | null;
     frequencyMultiplier: number;
-    characters: Array<{ id: string; characterId: string; character: { id: string; name: string } }>;
+    characters: Array<{ id: string; characterId: string; day100Date: Date | null; character: { id: string; name: string } }>;
     specialDays: Array<{ type: SpecialDayType; date: Date }>;
     skipDays: Array<{ skipDate: Date }>;
   }) {
@@ -76,7 +76,13 @@ export class PushSchedulerService {
     if (await engagementService.shouldTakeCooldown(user.id)) return;
 
     // 특별한 날 확인
-    const specialDay = this.detectSpecialDay(user.birthday, user.specialDays, tomorrow, timezone);
+    const specialDay = this.detectSpecialDay(
+      user.birthday,
+      user.specialDays,
+      user.characters.map((c) => c.day100Date),
+      tomorrow,
+      timezone
+    );
     const hasSpecialDay = specialDay != null;
 
     // 발송 횟수 결정
@@ -89,8 +95,9 @@ export class PushSchedulerService {
     const usedHours: number[] = [];
 
     for (let i = 0; i < pushCount; i++) {
-      const scheduledAt = generateRandomPushTime(timezone, usedHours);
-      usedHours.push(scheduledAt.getHours());
+      const scheduledAt = generateRandomPushTime(timezone, usedHours, tomorrow);
+      const hour = parseInt(formatInTimeZone(scheduledAt, timezone, 'H'), 10);
+      usedHours.push(hour);
 
       const isSpecial = i === pushCount - 1 && hasSpecialDay;
 
@@ -127,10 +134,12 @@ export class PushSchedulerService {
   private detectSpecialDay(
     birthday: Date | null,
     specialDays: Array<{ type: SpecialDayType; date: Date }>,
+    day100Dates: Array<Date | null>,
     date: Date,
     timezone: string
   ): SpecialDayType | null {
     const monthDay = formatInTimeZone(date, timezone, 'MM-dd');
+    const dateStr = formatInTimeZone(date, timezone, 'yyyy-MM-dd');
 
     if (birthday) {
       const bday = formatInTimeZone(birthday, 'UTC', 'MM-dd');
@@ -140,6 +149,12 @@ export class PushSchedulerService {
     for (const sd of specialDays) {
       const sdMonthDay = formatInTimeZone(sd.date, 'UTC', 'MM-dd');
       if (sdMonthDay === monthDay) return sd.type;
+    }
+
+    for (const day100 of day100Dates) {
+      if (day100 && formatInTimeZone(day100, timezone, 'yyyy-MM-dd') === dateStr) {
+        return SpecialDayType.DAY_100;
+      }
     }
 
     return null;
@@ -192,6 +207,7 @@ export class PushSchedulerService {
         user: {
           include: {
             characters: { where: { isActive: true } },
+            specialDays: true,
             deviceTokens: true,
           },
         },
@@ -214,13 +230,16 @@ export class PushSchedulerService {
     characterId: string | null;
     pushType: PushType;
     timezone: string;
+    scheduledAt: Date;
     user: {
       id: string;
       name: string;
       timezone: string;
       pushEnabled: boolean;
+      birthday: Date | null;
       deviceTokens: Array<{ token: string; platform: string }>;
-      characters: Array<{ id: string; characterId: string }>;
+      characters: Array<{ id: string; characterId: string; day100Date: Date | null }>;
+      specialDays: Array<{ type: SpecialDayType; date: Date }>;
     };
   }) {
     if (!schedule.user.pushEnabled || schedule.user.deviceTokens.length === 0) {
@@ -233,7 +252,13 @@ export class PushSchedulerService {
 
     const characterId = schedule.characterId ?? schedule.user.characters[0]?.characterId;
     const userCharacter = schedule.user.characters.find((c) => c.characterId === characterId);
-    if (!characterId || !userCharacter) return;
+    if (!characterId || !userCharacter) {
+      await prisma.pushSchedule.update({
+        where: { id: schedule.id },
+        data: { status: ScheduleStatus.CANCELLED },
+      });
+      return;
+    }
 
     // 일일 쿼터 확인
     const today = getUserTodayStart(schedule.timezone);
@@ -250,12 +275,26 @@ export class PushSchedulerService {
       return;
     }
 
+    const specialDayType =
+      schedule.pushType === PushType.SPECIAL_DAY
+        ? this.detectSpecialDay(
+            schedule.user.birthday,
+            schedule.user.specialDays,
+            schedule.user.characters.map((c) => c.day100Date),
+            schedule.scheduledAt,
+            schedule.timezone
+          )
+        : null;
+
     const content = await photoSelectorService.generatePushContent(
       schedule.userId,
       characterId,
       userCharacter.id,
       schedule.timezone,
-      schedule.pushType === PushType.SPECIAL_DAY ? { specialDayType: SpecialDayType.BIRTHDAY } : {}
+      {
+        scheduledAt: schedule.scheduledAt,
+        ...(specialDayType ? { specialDayType } : {}),
+      }
     );
 
     if (!content) {
@@ -266,58 +305,75 @@ export class PushSchedulerService {
       return;
     }
 
-    // 푸시 발송
-    const pushLog = await prisma.pushLog.create({
-      data: {
-        userId: schedule.userId,
-        characterId,
-        photoId: content.photoId,
-        message: content.message,
-        photoCategory: content.category,
-        pushType: schedule.pushType,
-      },
-    });
-
-    await pushNotificationService.sendPhotoPush({
-      userId: schedule.userId,
-      deviceTokens: schedule.user.deviceTokens.map((t) => t.token),
-      title: '', // 광고처럼 느껴지지 않도록 타이틀 없음
-      body: content.message,
-      imageUrl: content.thumbnailUrl ?? content.photoUrl,
-      data: {
-        type: 'photo_push',
-        pushLogId: pushLog.id,
-        characterId,
-        photoUrl: content.photoUrl,
-        message: content.message,
-        deepLink: `/chat/${characterId}?pushLogId=${pushLog.id}`,
-      },
-    });
-
-    await photoSelectorService.recordSent(
-      userCharacter.id,
-      content.photoId,
-      schedule.userId,
-      content.message
-    );
-
-    // 후속 시나리오 스케줄
-    await followUpService.scheduleFollowUps(pushLog.id, content.category);
-
-    // 쿼터 업데이트
-    await prisma.dailyPushQuota.upsert({
-      where: { userId_date: { userId: schedule.userId, date: today } },
-      create: { userId: schedule.userId, date: today, sentCount: 1, maxCount: 2 },
-      update: { sentCount: { increment: 1 } },
-    });
-
-    await prisma.pushSchedule.update({
-      where: { id: schedule.id },
+    const claimed = await prisma.pushSchedule.updateMany({
+      where: { id: schedule.id, status: ScheduleStatus.PENDING },
       data: { status: ScheduleStatus.EXECUTED, executedAt: new Date() },
     });
+    if (claimed.count === 0) return;
 
-    // 최적 시간 학습
-    await analyticsService.recordPushTime(schedule.userId, new Date());
+    try {
+      const pushLog = await prisma.pushLog.create({
+        data: {
+          userId: schedule.userId,
+          characterId,
+          photoId: content.photoId,
+          message: content.message,
+          photoCategory: content.category,
+          pushType: schedule.pushType,
+        },
+      });
+
+      const pushResult = await pushNotificationService.sendPhotoPush({
+        userId: schedule.userId,
+        deviceTokens: schedule.user.deviceTokens.map((t) => t.token),
+        title: '', // 광고처럼 느껴지지 않도록 타이틀 없음
+        body: content.message,
+        imageUrl: content.thumbnailUrl ?? content.photoUrl,
+        data: {
+          type: 'photo_push',
+          pushLogId: pushLog.id,
+          characterId,
+          photoUrl: content.photoUrl,
+          message: content.message,
+          deepLink: `/chat/${characterId}?pushLogId=${pushLog.id}`,
+        },
+      });
+
+      if (!pushResult.success) {
+        await prisma.pushLog.delete({ where: { id: pushLog.id } });
+        await prisma.pushSchedule.update({
+          where: { id: schedule.id },
+          data: { status: ScheduleStatus.PENDING, executedAt: null },
+        });
+        return;
+      }
+
+      await photoSelectorService.recordSent(
+        userCharacter.id,
+        content.photoId,
+        schedule.userId,
+        content.message
+      );
+
+      // 후속 시나리오 스케줄
+      await followUpService.scheduleFollowUps(pushLog.id, content.category);
+
+      // 쿼터 업데이트
+      await prisma.dailyPushQuota.upsert({
+        where: { userId_date: { userId: schedule.userId, date: today } },
+        create: { userId: schedule.userId, date: today, sentCount: 1, maxCount: 2 },
+        update: { sentCount: { increment: 1 } },
+      });
+
+      // 최적 시간 학습
+      await analyticsService.recordPushTime(schedule.userId, new Date());
+    } catch (err) {
+      await prisma.pushSchedule.update({
+        where: { id: schedule.id },
+        data: { status: ScheduleStatus.PENDING, executedAt: null },
+      });
+      throw err;
+    }
   }
 }
 

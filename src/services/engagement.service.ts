@@ -154,7 +154,8 @@ export class EngagementService {
       ? PUSH_CONFIG.MAX_DAILY_PUSHES + PUSH_CONFIG.SPECIAL_DAY_BONUS
       : PUSH_CONFIG.MAX_DAILY_PUSHES;
 
-    return Math.min(baseCount, maxAllowed);
+    const totalCount = hasSpecialDay ? baseCount + PUSH_CONFIG.SPECIAL_DAY_BONUS : baseCount;
+    return Math.min(totalCount, maxAllowed);
   }
 
   /** 콘텐츠 스타일 결정 (무반응 사용자용) */

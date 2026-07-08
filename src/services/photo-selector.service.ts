@@ -8,7 +8,7 @@ import {
   randomPick,
   personalizeMessage,
   selectCategoryForDay,
-  getUserNow,
+  formatInTimeZone,
 } from '../utils/push.utils.js';
 import type { SpecialDayType } from '@prisma/client';
 
@@ -134,15 +134,19 @@ export class PhotoSelectorService {
       specialDayType?: SpecialDayType;
       contentStyle?: string;
       forceCategory?: PhotoCategory;
+      scheduledAt?: Date;
     } = {}
   ): Promise<PhotoPushContent | null> {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return null;
 
-    const now = getUserNow(timezone);
-    const dayOfWeek = now.getDay();
-    const weekNumber = Math.ceil(now.getDate() / 7);
-    const timeOfDay = this.getTimeOfDay(now.getHours());
+    const referenceTime = options.scheduledAt ?? new Date();
+    const isoDay = parseInt(formatInTimeZone(referenceTime, timezone, 'i'), 10);
+    const dayOfWeek = isoDay % 7;
+    const dayOfMonth = parseInt(formatInTimeZone(referenceTime, timezone, 'd'), 10);
+    const weekNumber = Math.ceil(dayOfMonth / 7);
+    const hour = parseInt(formatInTimeZone(referenceTime, timezone, 'H'), 10);
+    const timeOfDay = this.getTimeOfDay(hour);
 
     let category: PhotoCategory;
     if (options.forceCategory) {
@@ -185,8 +189,10 @@ export class PhotoSelectorService {
   /** 발송 이력 기록 */
   async recordSent(userCharacterId: string, photoId: string, userId: string, message: string) {
     await prisma.$transaction([
-      prisma.sentPhotoHistory.create({
-        data: { userCharacterId, photoId },
+      prisma.sentPhotoHistory.upsert({
+        where: { userCharacterId_photoId: { userCharacterId, photoId } },
+        create: { userCharacterId, photoId },
+        update: { sentAt: new Date() },
       }),
       prisma.sentMessageHistory.create({
         data: { userId, message },

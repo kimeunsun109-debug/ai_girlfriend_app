@@ -46,9 +46,10 @@ export function getUserTodayStart(timezone: string): Date {
 /** 랜덤 발송 시간 생성 (같은 시간 반복 방지) */
 export function generateRandomPushTime(
   timezone: string,
-  usedHours: number[] = []
+  usedHours: number[] = [],
+  targetDate?: Date
 ): Date {
-  const today = getUserTodayStart(timezone);
+  const today = targetDate ?? getUserTodayStart(timezone);
   const availableWindows = PUSH_TIME_WINDOWS.filter(
     (w) => !usedHours.includes(w.startHour)
   );
@@ -114,8 +115,8 @@ export function classifyReply(content: string): 'positive' | 'negative' | 'neutr
   const positive = ['예뻐', '이쁘', '좋아', '멋져', '최고', '사랑', '귀여', '완벽', '대박', '짱', '❤️', '😍', '👍', '💕', '😊'];
   const negative = ['별로', '안 예뻐', '싫어', '그냥', '음...', '글쎄', '모르겠', '😐'];
 
-  if (positive.some((k) => lower.includes(k))) return 'positive';
   if (negative.some((k) => lower.includes(k))) return 'negative';
+  if (positive.some((k) => lower.includes(k))) return 'positive';
   return 'neutral';
 }
 

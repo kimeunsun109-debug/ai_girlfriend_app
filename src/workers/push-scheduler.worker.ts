@@ -27,11 +27,18 @@ async function runSchedulerCycle() {
   }
 }
 
+let lastDailyPlanningDate: string | null = null;
+
 async function runDailyPlanning() {
-  const hour = new Date().getUTCHours();
-  // UTC 15:30 = KST 00:30
+  const now = new Date();
+  const hour = now.getUTCHours();
+  // UTC 15:xx = KST 00:xx — run once per UTC day during the planning hour
   if (hour === 15) {
-    console.log(`[${new Date().toISOString()}] Running daily schedule planning...`);
+    const todayKey = now.toISOString().slice(0, 10);
+    if (lastDailyPlanningDate === todayKey) return;
+    lastDailyPlanningDate = todayKey;
+
+    console.log(`[${now.toISOString()}] Running daily schedule planning...`);
     try {
       await pushSchedulerService.planDailySchedules();
     } catch (err) {
