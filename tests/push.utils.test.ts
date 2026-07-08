@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { formatInTimeZone } from 'date-fns-tz';
 import {
   randomInt,
   randomPick,
@@ -49,10 +50,10 @@ describe('push.utils', () => {
     expect(classifyReply('봤어')).toBe('neutral');
   });
 
-  it('generateRandomPushTime creates future time', () => {
+  it('generateRandomPushTime creates time in allowed windows', () => {
     const time = generateRandomPushTime('Asia/Seoul');
     expect(time).toBeInstanceOf(Date);
-    const hour = time.getHours();
+    const hour = parseInt(formatInTimeZone(time, 'Asia/Seoul', 'H'), 10);
     expect(hour).toBeGreaterThanOrEqual(8);
     expect(hour).toBeLessThanOrEqual(22);
   });

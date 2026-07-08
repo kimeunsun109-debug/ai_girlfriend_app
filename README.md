@@ -134,11 +134,22 @@ npm run worker
 ## 캐릭터 사진 시스템
 
 각 캐릭터당 약 1,000장의 고품질 자연스러운 사진이 필요합니다.
-`CharacterPhoto` 테이블에 저장되며, 다음 요소가 다양해야 합니다:
+상세 내용은 **[docs/PHOTO_PUSH.md](docs/PHOTO_PUSH.md)** 를 참고하세요.
 
-- 표정, 배경, 조명, 카메라 구도, 의상, 헤어스타일
-- 계절, 날씨, 시간대
-- 90일 이내 동일 사진 재발송 방지
+### 로컬 이미지 import (Windows)
+
+```bash
+LOCAL_PHOTOS_DIR="C:/Users/user/OneDrive/Desktop/픽미톡 ai" \
+CHARACTER_ID="00000000-0000-0000-0000-000000000001" \
+npm run photos:import
+```
+
+### Web Push
+
+```bash
+npm run vapid:generate   # .env에 키 설정
+npm run dev              # http://localhost:3000 에서 테스트
+```
 
 ## 라이선스
 

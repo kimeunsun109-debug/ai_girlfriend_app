@@ -2,30 +2,90 @@ import { PrismaClient, PhotoCategory, TimeOfDay } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const SAMPLE_PHOTO_CATEGORIES: Array<{
+const CHARACTER_ID = '00000000-0000-0000-0000-000000000001';
+const USER_ID = '00000000-0000-0000-0000-000000000002';
+const BASE_URL = process.env.PUBLIC_BASE_URL ?? 'http://localhost:3000';
+
+/** 샘플 에셋 — assets/photos/ 에 저장된 실제 이미지 */
+const SAMPLE_PHOTOS: Array<{
+  file: string;
   category: PhotoCategory;
   tags: string[];
   timeOfDay?: TimeOfDay;
+  expression?: string;
+  background?: string;
 }> = [
-  { category: PhotoCategory.SELFIE_BED, tags: ['셀카', '침대', '아침'], timeOfDay: TimeOfDay.MORNING },
-  { category: PhotoCategory.COFFEE_CAFE, tags: ['커피', '카페'], timeOfDay: TimeOfDay.MORNING },
-  { category: PhotoCategory.HAIR_SALON, tags: ['머리', '미용실', '거울'] },
-  { category: PhotoCategory.WORK_OVERTIME, tags: ['야근', '책상'], timeOfDay: TimeOfDay.NIGHT },
-  { category: PhotoCategory.WORK_LEAVE, tags: ['퇴근'], timeOfDay: TimeOfDay.EVENING },
-  { category: PhotoCategory.FOOD_TTEOKBOKKI, tags: ['떡볶이', '음식'] },
-  { category: PhotoCategory.WEEKEND_OUT, tags: ['주말', '놀러'] },
-  { category: PhotoCategory.EXERCISE_GYM, tags: ['운동', '헬스'] },
-  { category: PhotoCategory.RAIN, tags: ['비', '우산'] },
-  { category: PhotoCategory.SELFIE_GENERAL, tags: ['셀카', '일반'] },
+  {
+    file: 'selfie_bed_morning.jpg',
+    category: PhotoCategory.SELFIE_BED,
+    tags: ['셀카', '침대', '아침'],
+    timeOfDay: TimeOfDay.MORNING,
+    expression: '졸림',
+    background: '침대',
+  },
+  {
+    file: 'coffee_cafe.jpg',
+    category: PhotoCategory.COFFEE_CAFE,
+    tags: ['커피', '카페'],
+    timeOfDay: TimeOfDay.MORNING,
+    expression: '기쁨',
+    background: '카페',
+  },
+  {
+    file: 'hair_salon_mirror.jpg',
+    category: PhotoCategory.HAIR_SALON,
+    tags: ['머리', '미용실', '거울'],
+    expression: '쑥스러움',
+    background: '미용실',
+  },
+  {
+    file: 'work_overtime_desk.jpg',
+    category: PhotoCategory.WORK_OVERTIME,
+    tags: ['야근', '책상'],
+    timeOfDay: TimeOfDay.NIGHT,
+    expression: '피곤',
+    background: '사무실',
+  },
+  {
+    file: 'weekend_out_sunny.jpg',
+    category: PhotoCategory.WEEKEND_OUT,
+    tags: ['주말', '놀러', '야외'],
+    timeOfDay: TimeOfDay.AFTERNOON,
+    expression: '웃음',
+    background: '거리',
+  },
+  {
+    file: 'nail_art_hand.jpg',
+    category: PhotoCategory.NAIL_ART,
+    tags: ['네일', '손톱'],
+    expression: '기쁨',
+    background: '집',
+  },
+  {
+    file: 'food_tteokbokki.jpg',
+    category: PhotoCategory.FOOD_TTEOKBOKKI,
+    tags: ['떡볶이', '음식'],
+    timeOfDay: TimeOfDay.EVENING,
+    expression: '행복',
+    background: '포장마차',
+  },
+  {
+    file: 'home_rainy_day.jpg',
+    category: PhotoCategory.HOME_LOUNGE,
+    tags: ['집', '비', '창가'],
+    timeOfDay: TimeOfDay.AFTERNOON,
+    expression: '다정',
+    background: '집',
+  },
 ];
 
 async function main() {
   console.log('Seeding database...');
 
   const character = await prisma.character.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000001' },
+    where: { id: CHARACTER_ID },
     create: {
-      id: '00000000-0000-0000-0000-000000000001',
+      id: CHARACTER_ID,
       name: '수아',
       personality: '다정하고 애교 많은 성격',
       speechStyle: '친근하고 다정한 말투, 이모티콘 자주 사용',
@@ -33,28 +93,31 @@ async function main() {
     update: {},
   });
 
-  // 캐릭터당 샘플 사진 50장 생성 (실제로는 ~1,000장)
-  for (const sample of SAMPLE_PHOTO_CATEGORIES) {
-    for (let i = 0; i < 5; i++) {
-      await prisma.characterPhoto.create({
-        data: {
-          characterId: character.id,
-          url: `https://cdn.pickmetalk.com/photos/${character.id}/${sample.category.toLowerCase()}_${i}.jpg`,
-          thumbnailUrl: `https://cdn.pickmetalk.com/photos/${character.id}/${sample.category.toLowerCase()}_${i}_thumb.jpg`,
-          category: sample.category,
-          tags: sample.tags,
-          timeOfDay: sample.timeOfDay,
-          expression: ['기쁨', '졸림', '웃음', '쑥스러움'][i % 4],
-          background: ['침대', '카페', '거리', '집'][i % 4],
-        },
-      });
-    }
+  // 기존 샘플 사진 정리 후 재등록
+  await prisma.characterPhoto.deleteMany({ where: { characterId: CHARACTER_ID } });
+
+  for (const photo of SAMPLE_PHOTOS) {
+    const url = `${BASE_URL}/assets/photos/${CHARACTER_ID}/${photo.file}`;
+    await prisma.characterPhoto.create({
+      data: {
+        characterId: CHARACTER_ID,
+        url,
+        thumbnailUrl: url,
+        category: photo.category,
+        tags: photo.tags,
+        timeOfDay: photo.timeOfDay,
+        expression: photo.expression,
+        background: photo.background,
+        contentHash: photo.file.replace('.jpg', ''),
+        status: 'ACTIVE',
+      },
+    });
   }
 
   const user = await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000002' },
+    where: { id: USER_ID },
     create: {
-      id: '00000000-0000-0000-0000-000000000002',
+      id: USER_ID,
       name: '은선',
       age: 28,
       timezone: 'Asia/Seoul',
@@ -71,19 +134,21 @@ async function main() {
   day100.setDate(day100.getDate() + 100);
 
   await prisma.userCharacter.upsert({
-    where: {
-      userId_characterId: { userId: user.id, characterId: character.id },
-    },
+    where: { userId_characterId: { userId: USER_ID, characterId: CHARACTER_ID } },
     create: {
-      userId: user.id,
-      characterId: character.id,
+      userId: USER_ID,
+      characterId: CHARACTER_ID,
       relationshipStartAt: relationshipStart,
       day100Date: day100,
     },
     update: {},
   });
 
-  console.log('Seed completed:', { character: character.name, user: user.name });
+  console.log('Seed completed:', {
+    character: character.name,
+    user: user.name,
+    photos: SAMPLE_PHOTOS.length,
+  });
 }
 
 main()

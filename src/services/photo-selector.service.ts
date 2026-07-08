@@ -71,6 +71,7 @@ export class PhotoSelectorService {
         characterId,
         category,
         isActive: true,
+        status: 'ACTIVE',
         id: { notIn: excludedIds },
         ...(timeOfDay ? { timeOfDay } : {}),
       },
@@ -83,6 +84,7 @@ export class PhotoSelectorService {
         where: {
           characterId,
           isActive: true,
+          status: 'ACTIVE',
           id: { notIn: excludedIds },
         },
         take: 20,

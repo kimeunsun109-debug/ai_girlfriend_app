@@ -1,6 +1,6 @@
 import { PrismaClient, FollowUpStage, FollowUpStatus, PhotoCategory } from '@prisma/client';
 import { PHOTO_MESSAGE_TEMPLATES } from '../data/photo-message-templates.js';
-import { pushNotificationService } from './push-notification.service.js';
+import { pushDeliveryService } from './push-delivery.service.js';
 import {
   randomPick,
   personalizeMessage,
@@ -98,9 +98,8 @@ export class FollowUpService {
       user: { deviceTokens: Array<{ token: string }> };
     };
   }) {
-    await pushNotificationService.sendPhotoPush({
+    await pushDeliveryService.sendToUser({
       userId: followUp.pushLog.userId,
-      deviceTokens: followUp.pushLog.user.deviceTokens.map((t) => t.token),
       title: '',
       body: followUp.message,
       data: {

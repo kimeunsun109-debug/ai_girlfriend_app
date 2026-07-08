@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PickMeTalk Web Push 테스트</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: 0.75rem 1.5rem; font-size: 1rem; margin: 0.5rem 0; width: 100%; }
+    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1rem; }
+    .photo-grid img { width: 100%; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>PickMeTalk Web Push</h1>
+  <p>사진 푸시 알림 구독 테스트 페이지입니다.</p>
+  <label>User ID: <input id="userId" value="00000000-0000-0000-0000-000000000002" style="width:100%" /></label>
+  <button id="subscribe">푸시 알림 구독</button>
+  <button id="unsubscribe">구독 해제</button>
+  <p id="status"></p>
+  <h2>샘플 사진 에셋</h2>
+  <div class="photo-grid" id="photos"></div>
+  <script src="/push-client.js"></script>
+  <script>
+    const status = document.getElementById('status');
+    document.getElementById('subscribe').onclick = async () => {
+      try {
+        await PickMePush.ensureSubscribed(document.getElementById('userId').value);
+        status.textContent = '구독 완료!';
+      } catch (e) {
+        status.textContent = '오류: ' + e.message;
+      }
+    };
+    document.getElementById('unsubscribe').onclick = async () => {
+      await PickMePush.unsubscribe();
+      status.textContent = '구독 해제됨';
+    };
+    const samples = ['selfie_bed_morning','coffee_cafe','hair_salon_mirror','work_overtime_desk','weekend_out_sunny','nail_art_hand','food_tteokbokki','home_rainy_day'];
+    const charId = '00000000-0000-0000-0000-000000000001';
+    samples.forEach(name => {
+      const img = document.createElement('img');
+      img.src = `/assets/photos/${charId}/${name}.jpg`;
+      img.alt = name;
+      document.getElementById('photos').appendChild(img);
+    });
+  </script>
+</body>
+</html>

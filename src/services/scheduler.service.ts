@@ -3,7 +3,7 @@ import { PUSH_CONFIG } from '../config/push.config.js';
 import { engagementService } from './engagement.service.js';
 import { photoSelectorService } from './photo-selector.service.js';
 import { followUpService } from './followup.service.js';
-import { pushNotificationService } from './push-notification.service.js';
+import { pushDeliveryService } from './push-delivery.service.js';
 import { analyticsService } from './analytics.service.js';
 import {
   generateRandomPushTime,
@@ -242,7 +242,19 @@ export class PushSchedulerService {
       specialDays: Array<{ type: SpecialDayType; date: Date }>;
     };
   }) {
-    if (!schedule.user.pushEnabled || schedule.user.deviceTokens.length === 0) {
+    if (!schedule.user.pushEnabled) {
+      await prisma.pushSchedule.update({
+        where: { id: schedule.id },
+        data: { status: ScheduleStatus.CANCELLED },
+      });
+      return;
+    }
+
+    const hasPushTarget =
+      schedule.user.deviceTokens.length > 0 ||
+      (await prisma.webPushSubscription.count({ where: { userId: schedule.userId } })) > 0;
+
+    if (!hasPushTarget) {
       await prisma.pushSchedule.update({
         where: { id: schedule.id },
         data: { status: ScheduleStatus.CANCELLED },
@@ -323,10 +335,9 @@ export class PushSchedulerService {
         },
       });
 
-      const pushResult = await pushNotificationService.sendPhotoPush({
+      const pushResult = await pushDeliveryService.sendToUser({
         userId: schedule.userId,
-        deviceTokens: schedule.user.deviceTokens.map((t) => t.token),
-        title: '', // 광고처럼 느껴지지 않도록 타이틀 없음
+        title: '',
         body: content.message,
         imageUrl: content.thumbnailUrl ?? content.photoUrl,
         data: {

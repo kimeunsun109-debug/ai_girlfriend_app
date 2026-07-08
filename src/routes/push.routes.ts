@@ -5,9 +5,65 @@ import { param } from '../utils/route.utils.js';
 import { analyticsService } from '../services/analytics.service.js';
 import { followUpService } from '../services/followup.service.js';
 import { engagementService } from '../services/engagement.service.js';
+import { webPushService } from '../services/web-push.service.js';
 import { Platform } from '@prisma/client';
 
 export const pushRouter = Router();
+
+// ─── Web Push VAPID 공개키 ──────────────────────────────────
+pushRouter.get('/vapid-public-key', (_req: Request, res: Response) => {
+  const publicKey = webPushService.getPublicKey();
+  if (!publicKey) {
+    return res.status(503).json({ error: 'Web Push not configured' });
+  }
+  res.json({ publicKey });
+});
+
+const webSubscriptionSchema = z.object({
+  userId: z.string().uuid(),
+  subscription: z.object({
+    endpoint: z.string().url(),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  }),
+  userAgent: z.string().optional(),
+});
+
+pushRouter.post('/web-subscription', async (req: Request, res: Response) => {
+  const parsed = webSubscriptionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { userId, subscription, userAgent } = parsed.data;
+
+  await prisma.webPushSubscription.upsert({
+    where: { endpoint: subscription.endpoint },
+    create: {
+      userId,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+      userAgent,
+    },
+    update: {
+      userId,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+      userAgent,
+    },
+  });
+
+  res.json({ success: true });
+});
+
+pushRouter.delete('/web-subscription', async (req: Request, res: Response) => {
+  const endpoint = req.body?.endpoint as string | undefined;
+  if (!endpoint) return res.status(400).json({ error: 'endpoint required' });
+
+  await prisma.webPushSubscription.deleteMany({ where: { endpoint } });
+  res.json({ success: true });
+});
 
 // ─── 디바이스 토큰 등록 ───────────────────────────────────
 const registerTokenSchema = z.object({

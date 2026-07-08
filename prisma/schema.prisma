@@ -17,6 +17,7 @@ model User {
   birthday          DateTime?
   pushEnabled       Boolean  @default(true)
   deviceTokens      DeviceToken[]
+  webPushSubscriptions WebPushSubscription[]
   engagementScore   Float    @default(0.5) // 0.0 ~ 1.0
   frequencyMultiplier Float  @default(1.0) // 0.5 ~ 1.5
   lastActiveAt      DateTime?
@@ -49,6 +50,20 @@ model DeviceToken {
 enum Platform {
   IOS
   ANDROID
+}
+
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ─── 캐릭터 ───────────────────────────────────────────────
@@ -100,6 +115,8 @@ model CharacterPhoto {
   season      Season?
   weather     Weather?
   timeOfDay   TimeOfDay?
+  contentHash String?
+  status      PhotoStatus   @default(ACTIVE)
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())
 
@@ -108,6 +125,13 @@ model CharacterPhoto {
 
   @@index([characterId, category])
   @@index([characterId, timeOfDay])
+}
+
+enum PhotoStatus {
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  ARCHIVED
 }
 
 enum PhotoCategory {
