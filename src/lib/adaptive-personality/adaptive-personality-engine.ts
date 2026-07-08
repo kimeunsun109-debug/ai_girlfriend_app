@@ -69,44 +69,55 @@ export class AdaptivePersonalityEngine {
 
     const slug = uc.character.slug ?? 'yuna';
     const reason = signal.reason ?? signal.type;
+    let didSomething = false;
 
     switch (signal.type) {
       case 'compliment':
         await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'compliment', reason, signal.specialEvent);
+        didSomething = true;
         break;
       case 'photo_compliment':
         await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'photo_compliment', reason, signal.specialEvent);
+        didSomething = true;
         break;
       case 'late_reply':
         await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'late_reply', reason);
+        didSomething = true;
         break;
       case 'playful_user':
         await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'playful_user', reason);
+        didSomething = true;
         break;
       case 'comforting_user':
-        await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'comforting_user', reason, true);
+        await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'comforting_user', reason, !!signal.specialEvent);
+        didSomething = true;
         break;
       case 'emotional_user':
         await dnaEvolutionEngine.applyRule(userCharacterId, slug, 'emotional_user', reason);
+        didSomething = true;
         break;
       case 'habit':
         await habitLearningEngine.learn(userCharacterId, signal.value ?? reason, signal.value);
+        didSomething = true;
         break;
       case 'preference':
         await preferenceLearningEngine.learnReaction(userCharacterId, signal.value ?? 'general', signal.reaction ?? 'neutral');
+        didSomething = true;
         break;
       default:
         break;
     }
 
-    await prisma.adaptiveMemory.create({
-      data: {
-        userCharacterId,
-        memoryType: signal.type,
-        content: `네가 ${reason}해줘서 조금 변했어.`,
-        trigger: reason,
-      },
-    });
+    if (didSomething) {
+      await prisma.adaptiveMemory.create({
+        data: {
+          userCharacterId,
+          memoryType: signal.type,
+          content: `네가 ${reason}해줘서 조금 변했어.`,
+          trigger: reason,
+        },
+      });
+    }
   }
 
   async getDnaMap(userCharacterId: string): Promise<Partial<Record<PersonalityTrait, number>>> {

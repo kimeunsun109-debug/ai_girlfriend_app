@@ -7,7 +7,8 @@ import { followUpService } from '../services/followup.service.js';
 import { engagementService } from '../services/engagement.service.js';
 import { webPushService } from '../services/web-push.service.js';
 import { Platform } from '@prisma/client';
-import { adaptivePersonalityEngine, preferenceLearningEngine, habitLearningEngine } from '../lib/adaptive-personality/index.js';
+import { preferenceLearningEngine, habitLearningEngine } from '../lib/adaptive-personality/index.js';
+import { formatInTimeZone } from 'date-fns-tz';
 
 export const pushRouter = Router();
 
@@ -137,30 +138,24 @@ pushRouter.post('/reply/:pushLogId', async (req: Request, res: Response) => {
   const pushLogId = param(req.params.pushLogId);
   const { userCharacterId, content } = parsed.data;
 
-  await followUpService.handleUserReply(pushLogId, userCharacterId, content);
+  // Validate that the provided userCharacterId matches the pushLog owner+character.
+  const pushLog = await prisma.pushLog.findUnique({
+    where: { id: pushLogId },
+    select: { userId: true, characterId: true },
+  });
+  if (!pushLog) return res.status(404).json({ error: 'pushLog not found' });
 
-  if (/(고마워|예뻐|좋아|멋져|사랑)/.test(content)) {
-    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
-      type: 'compliment',
-      reason: '사용자 칭찬',
-      value: content,
-    });
+  const uc = await prisma.userCharacter.findUnique({
+    where: { id: userCharacterId },
+    select: { userId: true, characterId: true },
+  });
+  if (!uc) return res.status(404).json({ error: 'userCharacter not found' });
+
+  if (uc.userId !== pushLog.userId || uc.characterId !== pushLog.characterId) {
+    return res.status(400).json({ error: 'userCharacterId does not match pushLog owner/character' });
   }
-  if (/(ㅋㅋ|장난|놀려)/.test(content)) {
-    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
-      type: 'playful_user',
-      reason: '사용자 장난 반응',
-      value: content,
-    });
-  }
-  if (/(힘내|괜찮아|위로)/.test(content)) {
-    await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
-      type: 'comforting_user',
-      reason: '사용자 위로',
-      value: content,
-      specialEvent: true,
-    });
-  }
+
+  await followUpService.handleUserReply(pushLogId, userCharacterId, content);
 
   res.json({ success: true });
 });
@@ -184,13 +179,18 @@ pushRouter.post('/like/:pushLogId', async (req: Request, res: Response) => {
 // ─── 사용자 활동 기록 ───────────────────────────────────────
 pushRouter.post('/activity/:userId', async (req: Request, res: Response) => {
   const userId = param(req.params.userId);
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: userId },
     data: { lastActiveAt: new Date() },
   });
 
-  const hour = new Date().getHours();
-  const uc = await prisma.userCharacter.findFirst({ where: { userId, isActive: true } });
+  const bodyUserCharacterId =
+    typeof req.body?.userCharacterId === 'string' ? (req.body.userCharacterId as string) : undefined;
+
+  const hour = parseInt(formatInTimeZone(new Date(), user.timezone, 'H'), 10);
+  const uc = bodyUserCharacterId
+    ? await prisma.userCharacter.findFirst({ where: { id: bodyUserCharacterId, userId, isActive: true } })
+    : await prisma.userCharacter.findFirst({ where: { userId, isActive: true }, orderBy: { createdAt: 'desc' } });
   if (uc) {
     if (hour === 22) await habitLearningEngine.learn(uc.id, 'login_22h', String(hour));
     else if (hour >= 21) await habitLearningEngine.learn(uc.id, 'late_night_login', String(hour));

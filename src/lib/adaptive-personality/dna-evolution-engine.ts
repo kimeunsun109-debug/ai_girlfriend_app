@@ -8,6 +8,8 @@ import {
 } from '../../config/adaptive-personality.config.js';
 import type { DnaUpdateInput } from './types.js';
 import { growthTimeline } from './growth-timeline.js';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { addDays, startOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -43,7 +45,35 @@ export class DNAEvolutionEngine {
     const locked = new Set(CORE_LOCKED_TRAITS[characterSlug] ?? []);
     const maxDelta = input.maxDelta ?? DAILY_DNA_LIMIT;
 
+    // Global per-day cap (not per-trait/per-call): enforce by counting history entries for "today"
+    const tz =
+      (
+        await prisma.userCharacter.findUnique({
+          where: { id: input.userCharacterId },
+          select: { user: { select: { timezone: true } } },
+        })
+      )?.user.timezone ?? 'Asia/Seoul';
+
+    const now = new Date();
+    const localNow = toZonedTime(now, tz);
+    const localStart = startOfDay(localNow);
+    const localEnd = addDays(localStart, 1);
+    const dayStartUtc = fromZonedTime(localStart, tz);
+    const dayEndUtc = fromZonedTime(localEnd, tz);
+
+    const already = await prisma.personalityHistory.count({
+      where: {
+        userCharacterId: input.userCharacterId,
+        createdAt: { gte: dayStartUtc, lt: dayEndUtc },
+      },
+    });
+
+    const dailyLimit = maxDelta; // maxDelta already encodes DAILY vs SPECIAL caps
+    let remaining = Math.max(0, dailyLimit - already);
+    if (remaining <= 0) return;
+
     for (const [trait, raw] of Object.entries(input.traitDeltas)) {
+      if (remaining <= 0) break;
       if (!raw) continue;
       const traitKey = trait as PersonalityTrait;
       const row = rows.find((r) => r.traitKey === traitKey);
@@ -84,6 +114,8 @@ export class DNAEvolutionEngine {
         traitKey,
         delta,
       });
+
+      remaining -= 1;
     }
   }
 }

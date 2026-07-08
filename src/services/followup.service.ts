@@ -165,6 +165,14 @@ export class FollowUpService {
     const sentiment = classifyReply(content);
     const isLateReply = replyLatencyMs > 2 * 60 * 60 * 1000; // 2시간 이상
 
+    // Ensure userCharacterId belongs to the pushLog (defense-in-depth; route also validates)
+    const userCharacter = await prisma.userCharacter.findUnique({
+      where: { id: userCharacterId },
+      select: { userId: true, characterId: true, relationshipLevel: true, character: { select: { name: true } } },
+    });
+    if (!userCharacter) return;
+    if (userCharacter.userId !== pushLog.userId || userCharacter.characterId !== pushLog.characterId) return;
+
     // 푸시 로그 업데이트
     await prisma.pushLog.update({
       where: { id: pushLogId },
@@ -206,25 +214,46 @@ export class FollowUpService {
       userCharacterId,
       replySentiment: sentiment,
     });
-    if (isLateReply) {
+
+    // ─── Adaptive Personality (deduped): at most one DNA rule per reply ───
+    // Priority: comforting > compliment/photo_compliment > playful > late_reply
+    const isCompliment = /(고마워|예뻐|좋아|멋져|최고|사랑)/.test(content);
+    const isPlayful = /(ㅋㅋㅋ|ㅋㅋ|장난|놀려)/.test(content);
+    const isComforting = /(힘내|괜찮아|위로)/.test(content);
+    const isPhotoContext = pushLog.photoId != null || pushLog.photoCategory != null;
+
+    if (isComforting) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'comforting_user',
+        reason: '사용자 위로',
+        value: content,
+        specialEvent: true,
+      });
+    } else if (sentiment === 'positive' && isCompliment && isPhotoContext) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'photo_compliment',
+        reason: '사진 칭찬',
+        value: content,
+      });
+    } else if (isCompliment) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'compliment',
+        reason: '사용자 칭찬',
+        value: content,
+      });
+    } else if (isPlayful) {
+      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
+        type: 'playful_user',
+        reason: '사용자 장난 반응',
+        value: content,
+      });
+    } else if (isLateReply) {
       await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
         type: 'late_reply',
         reason: '답장이 늦었어',
         value: content,
       });
     }
-    if (sentiment === 'positive' && /(예뻐|좋아|최고|사랑)/.test(content)) {
-      await adaptivePersonalityEngine.updateFromSignal(userCharacterId, {
-        type: 'photo_compliment',
-        reason: '사진 칭찬',
-        value: content,
-      });
-    }
-
-    const uc = await prisma.userCharacter.findUnique({
-      where: { id: userCharacterId },
-      include: { character: true },
-    });
 
     if (sentiment === 'negative') {
       await memoryEventEngine.onFirstEvent(
@@ -237,7 +266,7 @@ export class FollowUpService {
     if (sentiment === 'positive' && content.includes('예뻐')) {
       await memoryEventEngine.onSpecialChat(
         userCharacterId,
-        uc?.character.name ?? '',
+        userCharacter.character.name ?? '',
         content,
         0.85
       );
@@ -263,7 +292,7 @@ export class FollowUpService {
     const responseMessage = messageVariation.finalize(
       dynamicConversationService.styleByStage(
         personalizeMessage(randomPick(scenario.messages), pushLog.user.name, true),
-        uc?.relationshipLevel ?? 1,
+        userCharacter.relationshipLevel ?? 1,
         pushLog.user.name
       ),
       pushLog.user.name,

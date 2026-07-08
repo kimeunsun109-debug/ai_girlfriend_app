@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { dnaEvolutionEngine } from './dna-evolution-engine.js';
 
 const prisma = new PrismaClient();
 
@@ -19,12 +18,9 @@ export class PreferenceLearningEngine {
 
     const uc = await prisma.userCharacter.findUnique({ where: { id: userCharacterId }, include: { character: true } });
     if (!uc) return;
-    if (reaction === 'like' && preferenceKey.includes('photo')) {
-      await dnaEvolutionEngine.applyRule(userCharacterId, uc.character.slug ?? 'yuna', 'photo_compliment', '사진 선호 학습');
-    }
-    if (reaction === 'like' && preferenceKey.includes('playful')) {
-      await dnaEvolutionEngine.applyRule(userCharacterId, uc.character.slug ?? 'yuna', 'playful_user', '장난 선호 학습');
-    }
+    // Note: Do NOT evolve DNA from passive signals (view/click/like) here.
+    // DNA evolution should be driven by explicit user messages (reply) or explicit API signals,
+    // otherwise photo_view/photo_click can inflate traits like CONFIDENCE without actual compliments.
   }
 
   async getPreferences(userCharacterId: string) {

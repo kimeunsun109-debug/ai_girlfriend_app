@@ -71,17 +71,18 @@ export class LivingAIScheduler {
     const dayWeight = LIVING_AI_CONFIG.DAY_CONTACT_WEIGHTS[dayOfWeek] ?? 0.7;
     const affectionBonus = relationshipEventEngine.getContactProbabilityBonus(uc.affectionScore);
 
+    const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
+    const dnaContactBonus = adaptivePersonalityEngine.pushBonus(dnaMap);
+
     const contactRoll =
       rolls.contactToday &&
-      Math.random() < dayWeight + affectionBonus;
+      Math.random() < dayWeight + affectionBonus + dnaContactBonus;
 
     if (!contactRoll && !options.hasSpecialDay) {
       return { pushCount: 0, queued: 0, skippedReason: 'probability_skip' };
     }
 
     // 3. 발송 횟수 (0~2, 불규칙)
-    const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
-
     let pushCount = await this.decidePushCount(
       userId,
       uc.affectionScore,

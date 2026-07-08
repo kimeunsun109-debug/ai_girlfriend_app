@@ -338,12 +338,28 @@ export class PhotoSelectorService {
     const photo = await this.selectPhotoByContext(characterId, userCharacterId, category, emotion);
     if (!photo) return null;
 
-    const message = await this.selectMessage(
+    const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
+    let message = await this.selectMessage(
       category,
       user.name,
       userId,
       options.specialDayType
     );
+
+    message = await memoryReminderEngine.enrichMessage(userCharacterId, message);
+    message = dynamicConversationService.styleByStage(
+      message,
+      uc?.relationshipLevel ?? 1,
+      user.name
+    );
+    message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name);
+    message = relationshipEventEngine.styleMessage(
+      message,
+      user.name,
+      tier,
+      tier !== 'low'
+    );
+    message = messageVariation.finalize(message, user.name, tier !== 'low');
 
     return {
       photoId: photo.id,
