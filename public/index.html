@@ -3,57 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PickMeTalk Web Push 테스트</title>
+  <title>PickMeTalk — 캐릭터 사진 갤러리</title>
   <style>
-    body { font-family: sans-serif; max-width: 480px; margin: 2rem auto; padding: 0 1rem; }
-    button { padding: 0.75rem 1.5rem; font-size: 1rem; margin: 0.5rem 0; width: 100%; }
-    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 1rem; }
-    .photo-grid img { width: 100%; border-radius: 8px; }
+    body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: 0.6rem 1rem; margin: 0.25rem 0; }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0.5rem 0 1.5rem; }
+    .photo-grid img { width: 100%; border-radius: 6px; aspect-ratio: 1; object-fit: cover; }
+    .tag { font-size: 0.75rem; color: #666; }
+    h2 { border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
   </style>
 </head>
 <body>
-  <h1>PickMeTalk Web Push</h1>
-  <p>사진 푸시 알림 구독 테스트 페이지입니다.</p>
-  <label>User ID: <input id="userId" value="00000000-0000-0000-0000-000000000010" style="width:100%" /></label>
-  <button id="subscribe">푸시 알림 구독</button>
-  <button id="unsubscribe">구독 해제</button>
-  <p id="status"></p>
-  <h2>캐릭터 샘플 사진</h2>
-  <div id="characters"></div>
+  <h1>PickMeTalk 캐릭터 갤러리</h1>
+  <p>UI 플로우 상황별 사진 에셋 미리보기</p>
+  <button id="subscribe">Web Push 구독</button>
+  <span id="status"></span>
+  <div id="gallery"></div>
   <script src="/push-client.js"></script>
   <script>
     const CHARS = [
-      { id: '00000000-0000-0000-0000-000000000001', name: '유나', photos: ['yuna_campus_selfie','coffee_cafe'] },
-      { id: '00000000-0000-0000-0000-000000000002', name: '나린', photos: ['narin_mirror_selfie','narin_happy_blush','hair_salon_mirror'] },
-      { id: '00000000-0000-0000-0000-000000000003', name: '윤서', photos: ['yoonseo_rainy_window','home_rainy_day'] },
-      { id: '00000000-0000-0000-0000-000000000004', name: '은하', photos: ['eunha_cafe_peace','weekend_out_sunny'] },
-      { id: '00000000-0000-0000-0000-000000000005', name: '지유', photos: ['jiyu_gaming_selfie'] },
+      { id: '00000000-0000-0000-0000-000000000001', name: '😊 유나', photos: [
+        'yuna_campus_selfie','yuna_finger_heart','yuna_hair_salon','yuna_sad_pouty','yuna_nail_art','yuna_rain_umbrella','coffee_cafe','selfie_bed_morning','food_tteokbokki'
+      ]},
+      { id: '00000000-0000-0000-0000-000000000002', name: '😎 나린', photos: [
+        'narin_mirror_selfie','hair_salon_mirror','narin_sad_pouty','narin_happy_blush','narin_nail_art','narin_coffee_choice','narin_drinking_hangover'
+      ]},
+      { id: '00000000-0000-0000-0000-000000000003', name: '📚 윤서', photos: [
+        'yoonseo_rainy_window','yoonseo_waiting_sad','yoonseo_reading','yoonseo_work_leave','home_rainy_day','work_overtime_desk'
+      ]},
+      { id: '00000000-0000-0000-0000-000000000004', name: '🎨 은하', photos: [
+        'eunha_cafe_peace','eunha_dessert_cafe','eunha_nail_art','eunha_tteokbokki','eunha_drinking_hangover','weekend_out_sunny','nail_art_hand'
+      ]},
+      { id: '00000000-0000-0000-0000-000000000005', name: '⛳ 지유', photos: [
+        'jiyu_gaming_selfie','jiyu_escape_room','jiyu_aesthetic_cafe','jiyu_tteokbokki','jiyu_drinking_hangover','selfie_bed_morning'
+      ]},
     ];
-    const container = document.getElementById('characters');
+    const gallery = document.getElementById('gallery');
     CHARS.forEach(c => {
-      const section = document.createElement('div');
-      section.innerHTML = `<h3>${c.name}</h3><div class="photo-grid"></div>`;
-      const grid = section.querySelector('.photo-grid');
+      const h = document.createElement('h2');
+      h.textContent = c.name;
+      gallery.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'photo-grid';
       c.photos.forEach(name => {
         const img = document.createElement('img');
         img.src = `/assets/photos/${c.id}/${name}.jpg`;
         img.alt = name;
+        img.title = name;
         grid.appendChild(img);
       });
-      container.appendChild(section);
+      gallery.appendChild(grid);
     });
-    const status = document.getElementById('status');
     document.getElementById('subscribe').onclick = async () => {
       try {
-        await PickMePush.ensureSubscribed(document.getElementById('userId').value);
-        status.textContent = '구독 완료!';
+        await PickMePush.ensureSubscribed('00000000-0000-0000-0000-000000000010');
+        document.getElementById('status').textContent = ' ✓ 구독됨';
       } catch (e) {
-        status.textContent = '오류: ' + e.message;
+        document.getElementById('status').textContent = ' 오류: ' + e.message;
       }
-    };
-    document.getElementById('unsubscribe').onclick = async () => {
-      await PickMePush.unsubscribe();
-      status.textContent = '구독 해제됨';
     };
   </script>
 </body>
