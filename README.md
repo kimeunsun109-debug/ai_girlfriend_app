@@ -88,7 +88,7 @@ npm install
 # 환경 변수 설정
 cp .env.example .env
 
-# DB 마이그레이션
+# DB 마이그레이션 (로컬 Postgres 또는 Supabase DATABASE_URL)
 npm run db:push
 
 # 시드 데이터
@@ -100,6 +100,17 @@ npm run dev
 # 스케줄러 워커 실행 (별도 터미널)
 npm run worker
 ```
+
+### Supabase만 사용하는 경우
+
+로컬 Postgres 없이 Supabase SQL Editor로 스키마·시드를 적용할 수 있습니다.
+
+1. `supabase/schema.sql` 실행 (빈 DB, 1회)
+2. `supabase/seed.sql` 실행
+3. `.env`에 Supabase `DATABASE_URL` 설정
+4. `npm run db:generate` 후 `npm run dev`
+
+상세: **[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)**
 
 ## API 엔드포인트
 

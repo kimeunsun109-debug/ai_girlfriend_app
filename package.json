@@ -13,6 +13,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:schema:sql": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > supabase/schema.sql",
+    "postinstall": "prisma generate",
     "vapid:generate": "tsx scripts/generate-vapid-keys.ts",
     "photos:import": "tsx scripts/photos-import.ts",
     "photos:migrate": "tsx scripts/migrate-photo-folders.ts",
@@ -43,5 +45,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

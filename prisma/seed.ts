@@ -5,6 +5,7 @@ import { memoryEventEngine } from '../src/lib/relationship-journey/memory-event-
 
 const prisma = new PrismaClient();
 const USER_ID = '00000000-0000-0000-0000-000000000010';
+const DEMO_USER_CHARACTER_ID = '00000000-0000-0000-0000-000000000020';
 
 async function main() {
   console.log('Seeding characters (slug) + user + relationship stages...');
@@ -74,6 +75,7 @@ async function main() {
   const uc = await prisma.userCharacter.upsert({
     where: { userId_characterId: { userId: USER_ID, characterId: yunaId } },
     create: {
+      id: DEMO_USER_CHARACTER_ID,
       userId: USER_ID,
       characterId: yunaId,
       relationshipStartAt: relationshipStart,
