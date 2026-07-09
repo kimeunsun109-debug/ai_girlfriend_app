@@ -18,6 +18,7 @@
     "vapid:generate": "tsx scripts/generate-vapid-keys.ts",
     "photos:import": "tsx scripts/photos-import.ts",
     "photos:migrate": "tsx scripts/migrate-photo-folders.ts",
+    "photos:prompt": "tsx scripts/image-prompt-generate.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

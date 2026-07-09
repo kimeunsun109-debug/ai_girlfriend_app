@@ -190,6 +190,15 @@ npm run photos:migrate
 
 Photo Push는 **캐릭터 + 상황 + 감정** 기반으로 사진을 선택합니다 (전체 랜덤 ❌).
 
+### AI 이미지 생성 (Character Image Factory)
+
+실제 사람이 찍은 듯한 사진 프롬프트를 자동 생성합니다. 상세: **[docs/CHARACTER_IMAGE_FACTORY.md](docs/CHARACTER_IMAGE_FACTORY.md)**
+
+```bash
+npm run photos:prompt -- yuna 5
+GET /api/photos/prompt?character=yuna&category=hair
+```
+
 ## Living AI (살아있는 여자친구)
 
 AI가 먼저 하루를 살아가며 연락합니다. 상세: **[docs/LIVING_AI.md](docs/LIVING_AI.md)**

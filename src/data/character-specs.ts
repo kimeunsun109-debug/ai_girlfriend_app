@@ -1,13 +1,29 @@
 /**
  * PickMeTalk 캐릭터 비주얼·성격 스펙
  * 원본: docs/캐릭터예시_사진.md
+ * 이미지 생성: docs/CHARACTER_IMAGE_FACTORY.md
  */
+
+/** 절대 변경하지 않는 얼굴·체형 고정값 (Image Factory identity lock) */
+export interface CharacterIdentityLock {
+  faceShape: string;
+  eyes: string;
+  nose: string;
+  mouth: string;
+  skinTone: string;
+  age: number;
+  bodyType: string;
+  baseHairstyle: string;
+}
 
 export interface CharacterVisualSpec {
   slug: string;
   id: string;
   name: string;
   emoji: string;
+  /** Image Factory persona DNA (e.g. 편안한 생활여친) */
+  characterDNA: string;
+  identity: CharacterIdentityLock;
   hair: string;
   eyes: string;
   faceType: string;
@@ -29,6 +45,17 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     id: '00000000-0000-0000-0000-000000000001',
     name: '유나',
     emoji: '😊',
+    characterDNA: '편안한 생활여친',
+    identity: {
+      faceShape: '강아지상, 부드러운 턱선',
+      eyes: '따뜻한 갈색 눈, 살짝 처진 눈꼬리',
+      nose: '작고 자연스러운 콧날',
+      mouth: '얇은 입술, 은은한 미소',
+      skinTone: '밝은 웜톤, 자연스러운 모공',
+      age: 22,
+      bodyType: '슬림하지만 마른 편은 아닌 자연 체형',
+      baseHairstyle: '긴 생머리, 검은색에 가까운 다크브라운',
+    },
     hair: '긴 생머리',
     eyes: '따뜻한 갈색 눈',
     faceType: '강아지상',
@@ -46,6 +73,17 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     id: '00000000-0000-0000-0000-000000000002',
     name: '나린',
     emoji: '😎',
+    characterDNA: '츤데레 여친',
+    identity: {
+      faceShape: '약간 고양이상, 날카로운 턱선',
+      eyes: '또렷한 눈, 시크한 눈매',
+      nose: '오똑한 콧대',
+      mouth: '웃을 때 한쪽 보조개',
+      skinTone: '쿨톤 밝은 피부, 자연 텍스처',
+      age: 23,
+      bodyType: '슬림하고 단정한 체형',
+      baseHairstyle: '검은 단발, 앞머리 살짝 내림',
+    },
     hair: '검은 단발',
     eyes: '또렷한 눈',
     faceType: '약간 고양이상',
@@ -64,6 +102,17 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     id: '00000000-0000-0000-0000-000000000003',
     name: '윤서',
     emoji: '📚',
+    characterDNA: '결정장애 해결사',
+    identity: {
+      faceShape: '고양이상, 날카롭고 단정한 이미지',
+      eyes: '차분한 눈빛, 긴 속눈썹',
+      nose: '곧고 단정한 코',
+      mouth: '작은 입, 차분한 미소',
+      skinTone: '맑은 밝은 피부톤',
+      age: 24,
+      bodyType: '단아하고 슬림한 체형',
+      baseHairstyle: '긴 검은 생머리, 가르마 정돈',
+    },
     hair: '긴 검은색 머리',
     eyes: '차분한 눈빛',
     faceType: '고양이상, 날카로운 이미지',
@@ -82,6 +131,17 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     id: '00000000-0000-0000-0000-000000000004',
     name: '은하',
     emoji: '🎨',
+    characterDNA: '색다른 시각',
+    identity: {
+      faceShape: '자유로운 이미지, 둥근 턱',
+      eyes: '밝고 호기심 많은 눈',
+      nose: '작고 귀여운 코',
+      mouth: '활짝 웃을 때 입이 크게 벌어짐',
+      skinTone: '밝은 피부, 자연스러운 잡티 허용',
+      age: 22,
+      bodyType: '작고 활동적인 체형',
+      baseHairstyle: '단발 웨이브, 염색 또는 브릿지 포인트',
+    },
     hair: '단발 웨이브, 염색 또는 브릿지',
     eyes: '밝은 눈',
     faceType: '자유로운 이미지',
@@ -99,6 +159,17 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
     id: '00000000-0000-0000-0000-000000000005',
     name: '지유',
     emoji: '⛳',
+    characterDNA: '텐션 넘치는 트렌디 여친',
+    identity: {
+      faceShape: '트렌디하고 쿨한 인상',
+      eyes: '자유롭고 밝은 눈빛',
+      nose: '자연스러운 코',
+      mouth: '친구 같은 편한 웃음',
+      skinTone: '건강한 밝은 피부',
+      age: 21,
+      bodyType: '활동적인 슬림 체형',
+      baseHairstyle: '트렌디 스타일 — 긴 머리 또는 포니테일',
+    },
     hair: '트렌디 스타일 (긴 머리 또는 포니테일)',
     eyes: '자유로운 눈빛',
     faceType: '트렌디, 쿨',
@@ -115,6 +186,10 @@ export const CHARACTER_SPECS: CharacterVisualSpec[] = [
 
 export function getCharacterSpec(characterId: string): CharacterVisualSpec | undefined {
   return CHARACTER_SPECS.find((c) => c.id === characterId);
+}
+
+export function getCharacterSpecBySlug(slug: string): CharacterVisualSpec | undefined {
+  return CHARACTER_SPECS.find((c) => c.slug === slug);
 }
 
 export function getCharacterSpecByName(name: string): CharacterVisualSpec | undefined {

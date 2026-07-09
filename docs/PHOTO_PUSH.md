@@ -450,6 +450,8 @@ model CharacterPhoto {
 
 코드: `src/data/character-specs.ts`
 
+**AI 이미지 생성 (MASTER PROMPT):** [CHARACTER_IMAGE_FACTORY.md](./CHARACTER_IMAGE_FACTORY.md) — `npm run photos:prompt`, `GET /api/photos/prompt`
+
 ---
 
 ## 7. 후속 반응 시나리오
