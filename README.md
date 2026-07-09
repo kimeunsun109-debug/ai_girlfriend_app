@@ -199,6 +199,15 @@ npm run photos:prompt -- yuna 5
 GET /api/photos/prompt?character=yuna&category=hair
 ```
 
+### Prompt Catalog (16,800 prompts)
+
+```bash
+GET /api/photos/prompts/yuna/cafe/random
+npm run prompts:build    # assets/prompts/ 재생성
+```
+
+상세: [docs/CHARACTER_IMAGE_FACTORY.md](docs/CHARACTER_IMAGE_FACTORY.md)
+
 ## Living AI (살아있는 여자친구)
 
 AI가 먼저 하루를 살아가며 연락합니다. 상세: **[docs/LIVING_AI.md](docs/LIVING_AI.md)**

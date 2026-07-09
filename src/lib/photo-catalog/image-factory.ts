@@ -9,6 +9,7 @@ import {
   EMOTION_POOL,
   EXPRESSION_POOL,
   IDENTITY_LOCK_FIELDS,
+  LIGHTING_POOL,
   LOCATION_POOL,
   OUTFIT_POOL,
   QUALITY_NEGATIVE,
@@ -33,6 +34,7 @@ export interface ImageScenario {
   action: string;
   expression: string;
   camera: string;
+  lighting: string;
 }
 
 export interface ImagePromptOptions {
@@ -77,6 +79,7 @@ function pickScenario(rng: () => number, overrides?: Partial<ImageScenario>): Im
     action: overrides?.action ?? pick(ACTION_POOL, rng),
     expression: overrides?.expression ?? pick(EXPRESSION_POOL, rng),
     camera: overrides?.camera ?? pick(CAMERA_POOL, rng),
+    lighting: overrides?.lighting ?? pick(LIGHTING_POOL, rng),
   };
 }
 
@@ -120,6 +123,7 @@ function buildPromptBody(
     `Action: ${scenario.action}`,
     `Expression: ${scenario.expression}`,
     `Camera: ${scenario.camera}`,
+    `Lighting: ${scenario.lighting}`,
     '',
     '## Photo quality',
     QUALITY_POSITIVE.join(', '),
@@ -190,9 +194,10 @@ export class CharacterImageFactory {
     return results;
   }
 
-  /** Map photo-catalog category slug to a plausible scene override */
+  /** Map prompt-catalog category slug to scenario overrides */
   scenarioFromCategory(categorySlug: string, emotion?: string): Partial<ImageScenario> {
-    const map: Record<string, Partial<ImageScenario>> = {
+    // Lazy import avoided — use inline map for legacy slugs; catalog uses scenarioDefaults directly
+    const legacy: Record<string, Partial<ImageScenario>> = {
       hair: { location: 'hair salon mirror', action: 'at hair salon', camera: 'mirror selfie' },
       coffee: { location: 'cafe', action: 'drinking coffee', camera: 'photo on table pointing up' },
       rain: { weather: 'rain', location: 'home bedroom', action: 'looking out the window' },
@@ -206,9 +211,9 @@ export class CharacterImageFactory {
       sleepy: { emotion: 'sleepy', expression: 'sleepy drowsy look', time: 'night' },
     };
 
-    const base = map[categorySlug] ?? {};
-    if (emotion && map[emotion]) {
-      return { ...base, ...map[emotion] };
+    const base = legacy[categorySlug] ?? {};
+    if (emotion && legacy[emotion]) {
+      return { ...base, ...legacy[emotion] };
     }
     if (emotion) {
       return { ...base, emotion };

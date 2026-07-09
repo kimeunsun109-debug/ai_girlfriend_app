@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { photoCatalogRepository } from '../lib/photo-catalog/photo-repository.js';
 import { buildPhotoUrl } from '../lib/photo-catalog/index-manager.js';
 import { characterImageFactory } from '../lib/photo-catalog/image-factory.js';
+import { promptCatalogReader } from '../lib/photo-catalog/prompt-catalog-reader.js';
 import { param } from '../utils/route.utils.js';
 
 export const photosRouter = Router();
@@ -60,6 +61,42 @@ photosRouter.get('/prompt', (req: Request, res: Response) => {
   }
 
   res.json({ count: prompts.length, prompts });
+});
+
+/** Prompt Catalog — 캐릭터별 인덱스 */
+photosRouter.get('/prompts', (_req: Request, res: Response) => {
+  const characters = promptCatalogReader.listCharacters();
+  const summary = characters.map((slug) => ({
+    slug,
+    index: promptCatalogReader.loadIndex(slug),
+  }));
+  res.json({ characters: summary });
+});
+
+/** Prompt Catalog — 카테고리 목록 */
+photosRouter.get('/prompts/:characterSlug', (req: Request, res: Response) => {
+  const index = promptCatalogReader.listCategories(param(req.params.characterSlug));
+  if (!index) return res.status(404).json({ error: 'Prompt catalog not found' });
+  res.json(index);
+});
+
+/** Prompt Catalog — 카테고리별 프롬프트 목록 */
+photosRouter.get('/prompts/:characterSlug/:category', (req: Request, res: Response) => {
+  const slug = param(req.params.characterSlug);
+  const category = param(req.params.category);
+  const file = promptCatalogReader.loadCategory(slug, category);
+  if (!file) return res.status(404).json({ error: 'Category not found' });
+  res.json(file);
+});
+
+/** Prompt Catalog — 랜덤 프롬프트 1개 */
+photosRouter.get('/prompts/:characterSlug/:category/random', (req: Request, res: Response) => {
+  const slug = param(req.params.characterSlug);
+  const category = param(req.params.category);
+  const seed = req.query.seed ? parseInt(req.query.seed as string, 10) : undefined;
+  const prompt = promptCatalogReader.getRandomPrompt(slug, category, seed);
+  if (!prompt) return res.status(404).json({ error: 'No prompts in category' });
+  res.json(prompt);
 });
 
 /** 캐릭터 Image Factory 메타 (DNA + identity lock 요약) */

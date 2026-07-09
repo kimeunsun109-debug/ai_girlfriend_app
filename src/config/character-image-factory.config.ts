@@ -89,6 +89,23 @@ export const CAMERA_POOL = [
   'glass window reflection',
 ] as const;
 
+export const LIGHTING_POOL = [
+  'soft natural window light',
+  'warm golden hour sunlight',
+  'overcast diffused daylight',
+  'dim warm bedroom lamp',
+  'fluorescent office lighting',
+  'cafe warm ambient light',
+  'neon sign color spill',
+  'streetlight at night',
+  'rainy day grey natural light',
+  'snow-reflected bright daylight',
+  'bathroom mirror light',
+  'car interior dashboard glow',
+  'TV screen glow in dark room',
+  'sunset through curtains',
+] as const;
+
 export const TIME_POOL = [
   'dawn',
   'morning',

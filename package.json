@@ -19,6 +19,8 @@
     "photos:import": "tsx scripts/photos-import.ts",
     "photos:migrate": "tsx scripts/migrate-photo-folders.ts",
     "photos:prompt": "tsx scripts/image-prompt-generate.ts",
+    "prompts:build": "tsx scripts/build-prompt-catalog.ts",
+    "prompts:verify": "tsx scripts/build-prompt-catalog.ts verify",
     "test": "vitest run",
     "test:watch": "vitest"
   },

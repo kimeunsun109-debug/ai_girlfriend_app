@@ -156,3 +156,58 @@ scripts/image-prompt-generate.ts                # CLI
 4. `npm run photos:migrate` 로 인덱스·DB 동기화
 
 상세 파이프라인: [PHOTO_PUSH.md](./PHOTO_PUSH.md)
+
+---
+
+## Prompt Catalog (사진 프롬프트 라이브러리)
+
+프로젝트에 **16,800개** 이미지 생성용 프롬프트가 `assets/prompts/`에 저장되어 있습니다.
+
+| 캐릭터 | 카테고리 | 프롬프트/캐릭터 |
+|--------|----------|----------------|
+| 유나·나린·윤서·은하·지유 | 112개 | 3,360개 each |
+
+### 폴더 구조
+
+```
+assets/prompts/
+  yuna/
+    _index.json
+    cafe.json
+    morning.json
+    ...
+```
+
+### JSON 항목 예시
+
+```json
+{
+  "category": "cafe",
+  "emotion": "happy",
+  "camera": "photo on table pointing up",
+  "weather": "cloudy",
+  "time": "afternoon",
+  "lighting": "cafe warm ambient light",
+  "prompt": "...",
+  "negativePrompt": "..."
+}
+```
+
+### 사용법
+
+```bash
+# 카탈로그 재생성 (카테고리 정의 변경 후)
+npm run prompts:build
+npm run prompts:verify
+
+# API
+GET /api/photos/prompts/yuna              # 인덱스
+GET /api/photos/prompts/yuna/cafe         # 카테고리 전체
+GET /api/photos/prompts/yuna/cafe/random  # 랜덤 1개
+```
+
+### 유지보수
+
+- 카테고리 추가/수정: `src/config/prompt-categories.config.ts`
+- 프롬프트 품질 규칙: `src/config/character-image-factory.config.ts`
+- 빌더 로직: `src/lib/photo-catalog/prompt-catalog-builder.ts`

@@ -1,0 +1,682 @@
+{
+  "character": "은하",
+  "slug": "eunha",
+  "version": "1.0.0",
+  "generatedAt": "2026-07-09T05:52:43.020Z",
+  "categoryCount": 112,
+  "totalPrompts": 3360,
+  "categories": [
+    {
+      "slug": "morning",
+      "nameKo": "아침",
+      "count": 30,
+      "file": "morning.json"
+    },
+    {
+      "slug": "lunch",
+      "nameKo": "점심",
+      "count": 30,
+      "file": "lunch.json"
+    },
+    {
+      "slug": "evening",
+      "nameKo": "저녁",
+      "count": 30,
+      "file": "evening.json"
+    },
+    {
+      "slug": "dawn",
+      "nameKo": "새벽",
+      "count": 30,
+      "file": "dawn.json"
+    },
+    {
+      "slug": "night",
+      "nameKo": "밤",
+      "count": 30,
+      "file": "night.json"
+    },
+    {
+      "slug": "golden_hour",
+      "nameKo": "노을",
+      "count": 30,
+      "file": "golden_hour.json"
+    },
+    {
+      "slug": "home",
+      "nameKo": "집",
+      "count": 30,
+      "file": "home.json"
+    },
+    {
+      "slug": "bedroom",
+      "nameKo": "침실",
+      "count": 30,
+      "file": "bedroom.json"
+    },
+    {
+      "slug": "livingroom",
+      "nameKo": "거실",
+      "count": 30,
+      "file": "livingroom.json"
+    },
+    {
+      "slug": "kitchen",
+      "nameKo": "주방",
+      "count": 30,
+      "file": "kitchen.json"
+    },
+    {
+      "slug": "bathroom",
+      "nameKo": "욕실",
+      "count": 30,
+      "file": "bathroom.json"
+    },
+    {
+      "slug": "balcony",
+      "nameKo": "베란다",
+      "count": 30,
+      "file": "balcony.json"
+    },
+    {
+      "slug": "cafe",
+      "nameKo": "카페",
+      "count": 30,
+      "file": "cafe.json"
+    },
+    {
+      "slug": "office",
+      "nameKo": "회사",
+      "count": 30,
+      "file": "office.json"
+    },
+    {
+      "slug": "after_work",
+      "nameKo": "퇴근",
+      "count": 30,
+      "file": "after_work.json"
+    },
+    {
+      "slug": "commute",
+      "nameKo": "출근",
+      "count": 30,
+      "file": "commute.json"
+    },
+    {
+      "slug": "overtime",
+      "nameKo": "야근",
+      "count": 30,
+      "file": "overtime.json"
+    },
+    {
+      "slug": "lunch_break",
+      "nameKo": "점심시간",
+      "count": 30,
+      "file": "lunch_break.json"
+    },
+    {
+      "slug": "walk",
+      "nameKo": "산책",
+      "count": 30,
+      "file": "walk.json"
+    },
+    {
+      "slug": "park",
+      "nameKo": "공원",
+      "count": 30,
+      "file": "park.json"
+    },
+    {
+      "slug": "han_river",
+      "nameKo": "한강",
+      "count": 30,
+      "file": "han_river.json"
+    },
+    {
+      "slug": "drive",
+      "nameKo": "드라이브",
+      "count": 30,
+      "file": "drive.json"
+    },
+    {
+      "slug": "rain",
+      "nameKo": "비",
+      "count": 30,
+      "file": "rain.json"
+    },
+    {
+      "slug": "snow",
+      "nameKo": "눈",
+      "count": 30,
+      "file": "snow.json"
+    },
+    {
+      "slug": "cherry_blossom",
+      "nameKo": "벚꽃",
+      "count": 30,
+      "file": "cherry_blossom.json"
+    },
+    {
+      "slug": "autumn_leaves",
+      "nameKo": "단풍",
+      "count": 30,
+      "file": "autumn_leaves.json"
+    },
+    {
+      "slug": "summer",
+      "nameKo": "여름",
+      "count": 30,
+      "file": "summer.json"
+    },
+    {
+      "slug": "winter",
+      "nameKo": "겨울",
+      "count": 30,
+      "file": "winter.json"
+    },
+    {
+      "slug": "spring",
+      "nameKo": "봄",
+      "count": 30,
+      "file": "spring.json"
+    },
+    {
+      "slug": "autumn",
+      "nameKo": "가을",
+      "count": 30,
+      "file": "autumn.json"
+    },
+    {
+      "slug": "sunny_day",
+      "nameKo": "맑은날",
+      "count": 30,
+      "file": "sunny_day.json"
+    },
+    {
+      "slug": "cloudy",
+      "nameKo": "흐린날",
+      "count": 30,
+      "file": "cloudy.json"
+    },
+    {
+      "slug": "rainy_window",
+      "nameKo": "비오는창가",
+      "count": 30,
+      "file": "rainy_window.json"
+    },
+    {
+      "slug": "snow_day",
+      "nameKo": "눈오는날",
+      "count": 30,
+      "file": "snow_day.json"
+    },
+    {
+      "slug": "hot_day",
+      "nameKo": "무더위",
+      "count": 30,
+      "file": "hot_day.json"
+    },
+    {
+      "slug": "cold_day",
+      "nameKo": "추위",
+      "count": 30,
+      "file": "cold_day.json"
+    },
+    {
+      "slug": "wind",
+      "nameKo": "바람",
+      "count": 30,
+      "file": "wind.json"
+    },
+    {
+      "slug": "travel",
+      "nameKo": "여행",
+      "count": 30,
+      "file": "travel.json"
+    },
+    {
+      "slug": "airport",
+      "nameKo": "공항",
+      "count": 30,
+      "file": "airport.json"
+    },
+    {
+      "slug": "hotel",
+      "nameKo": "호텔",
+      "count": 30,
+      "file": "hotel.json"
+    },
+    {
+      "slug": "beach",
+      "nameKo": "바다",
+      "count": 30,
+      "file": "beach.json"
+    },
+    {
+      "slug": "camping",
+      "nameKo": "캠핑",
+      "count": 30,
+      "file": "camping.json"
+    },
+    {
+      "slug": "gym",
+      "nameKo": "헬스장",
+      "count": 30,
+      "file": "gym.json"
+    },
+    {
+      "slug": "pilates",
+      "nameKo": "필라테스",
+      "count": 30,
+      "file": "pilates.json"
+    },
+    {
+      "slug": "workout",
+      "nameKo": "운동",
+      "count": 30,
+      "file": "workout.json"
+    },
+    {
+      "slug": "yoga",
+      "nameKo": "요가",
+      "count": 30,
+      "file": "yoga.json"
+    },
+    {
+      "slug": "running",
+      "nameKo": "러닝",
+      "count": 30,
+      "file": "running.json"
+    },
+    {
+      "slug": "hair_salon",
+      "nameKo": "미용실",
+      "count": 30,
+      "file": "hair_salon.json"
+    },
+    {
+      "slug": "nail",
+      "nameKo": "네일",
+      "count": 30,
+      "file": "nail.json"
+    },
+    {
+      "slug": "makeup",
+      "nameKo": "화장",
+      "count": 30,
+      "file": "makeup.json"
+    },
+    {
+      "slug": "reading",
+      "nameKo": "독서",
+      "count": 30,
+      "file": "reading.json"
+    },
+    {
+      "slug": "game",
+      "nameKo": "게임",
+      "count": 30,
+      "file": "game.json"
+    },
+    {
+      "slug": "pc_room",
+      "nameKo": "PC방",
+      "count": 30,
+      "file": "pc_room.json"
+    },
+    {
+      "slug": "karaoke",
+      "nameKo": "노래방",
+      "count": 30,
+      "file": "karaoke.json"
+    },
+    {
+      "slug": "cinema",
+      "nameKo": "영화관",
+      "count": 30,
+      "file": "cinema.json"
+    },
+    {
+      "slug": "library",
+      "nameKo": "도서관",
+      "count": 30,
+      "file": "library.json"
+    },
+    {
+      "slug": "campus",
+      "nameKo": "캠퍼스",
+      "count": 30,
+      "file": "campus.json"
+    },
+    {
+      "slug": "study",
+      "nameKo": "공부",
+      "count": 30,
+      "file": "study.json"
+    },
+    {
+      "slug": "concert",
+      "nameKo": "콘서트",
+      "count": 30,
+      "file": "concert.json"
+    },
+    {
+      "slug": "festival",
+      "nameKo": "축제",
+      "count": 30,
+      "file": "festival.json"
+    },
+    {
+      "slug": "amusement_park",
+      "nameKo": "놀이공원",
+      "count": 30,
+      "file": "amusement_park.json"
+    },
+    {
+      "slug": "picnic",
+      "nameKo": "피크닉",
+      "count": 30,
+      "file": "picnic.json"
+    },
+    {
+      "slug": "shopping",
+      "nameKo": "쇼핑",
+      "count": 30,
+      "file": "shopping.json"
+    },
+    {
+      "slug": "mart",
+      "nameKo": "마트",
+      "count": 30,
+      "file": "mart.json"
+    },
+    {
+      "slug": "convenience_store",
+      "nameKo": "편의점",
+      "count": 30,
+      "file": "convenience_store.json"
+    },
+    {
+      "slug": "grocery",
+      "nameKo": "장보기",
+      "count": 30,
+      "file": "grocery.json"
+    },
+    {
+      "slug": "cleaning",
+      "nameKo": "청소",
+      "count": 30,
+      "file": "cleaning.json"
+    },
+    {
+      "slug": "laundry",
+      "nameKo": "빨래",
+      "count": 30,
+      "file": "laundry.json"
+    },
+    {
+      "slug": "food",
+      "nameKo": "음식",
+      "count": 30,
+      "file": "food.json"
+    },
+    {
+      "slug": "cooking",
+      "nameKo": "요리",
+      "count": 30,
+      "file": "cooking.json"
+    },
+    {
+      "slug": "coffee",
+      "nameKo": "커피",
+      "count": 30,
+      "file": "coffee.json"
+    },
+    {
+      "slug": "brunch",
+      "nameKo": "브런치",
+      "count": 30,
+      "file": "brunch.json"
+    },
+    {
+      "slug": "ramen",
+      "nameKo": "라면",
+      "count": 30,
+      "file": "ramen.json"
+    },
+    {
+      "slug": "dessert",
+      "nameKo": "디저트",
+      "count": 30,
+      "file": "dessert.json"
+    },
+    {
+      "slug": "late_night_snack",
+      "nameKo": "야식",
+      "count": 30,
+      "file": "late_night_snack.json"
+    },
+    {
+      "slug": "selfie",
+      "nameKo": "셀카",
+      "count": 30,
+      "file": "selfie.json"
+    },
+    {
+      "slug": "mirror_selfie",
+      "nameKo": "거울셀카",
+      "count": 30,
+      "file": "mirror_selfie.json"
+    },
+    {
+      "slug": "aesthetic",
+      "nameKo": "감성사진",
+      "count": 30,
+      "file": "aesthetic.json"
+    },
+    {
+      "slug": "friend_took",
+      "nameKo": "친구가 찍어줌",
+      "count": 30,
+      "file": "friend_took.json"
+    },
+    {
+      "slug": "date",
+      "nameKo": "데이트",
+      "count": 30,
+      "file": "date.json"
+    },
+    {
+      "slug": "couple",
+      "nameKo": "커플",
+      "count": 30,
+      "file": "couple.json"
+    },
+    {
+      "slug": "friends",
+      "nameKo": "친구",
+      "count": 30,
+      "file": "friends.json"
+    },
+    {
+      "slug": "missing_you",
+      "nameKo": "보고싶음",
+      "count": 30,
+      "file": "missing_you.json"
+    },
+    {
+      "slug": "sulky",
+      "nameKo": "삐짐",
+      "count": 30,
+      "file": "sulky.json"
+    },
+    {
+      "slug": "sleepy",
+      "nameKo": "졸림",
+      "count": 30,
+      "file": "sleepy.json"
+    },
+    {
+      "slug": "excited",
+      "nameKo": "신남",
+      "count": 30,
+      "file": "excited.json"
+    },
+    {
+      "slug": "cozy",
+      "nameKo": "포근함",
+      "count": 30,
+      "file": "cozy.json"
+    },
+    {
+      "slug": "pajamas",
+      "nameKo": "잠옷",
+      "count": 30,
+      "file": "pajamas.json"
+    },
+    {
+      "slug": "birthday",
+      "nameKo": "생일",
+      "count": 30,
+      "file": "birthday.json"
+    },
+    {
+      "slug": "christmas",
+      "nameKo": "크리스마스",
+      "count": 30,
+      "file": "christmas.json"
+    },
+    {
+      "slug": "valentine",
+      "nameKo": "발렌타인",
+      "count": 30,
+      "file": "valentine.json"
+    },
+    {
+      "slug": "white_day",
+      "nameKo": "화이트데이",
+      "count": 30,
+      "file": "white_day.json"
+    },
+    {
+      "slug": "pepero_day",
+      "nameKo": "빼빼로데이",
+      "count": 30,
+      "file": "pepero_day.json"
+    },
+    {
+      "slug": "new_year",
+      "nameKo": "새해",
+      "count": 30,
+      "file": "new_year.json"
+    },
+    {
+      "slug": "halloween",
+      "nameKo": "할로윈",
+      "count": 30,
+      "file": "halloween.json"
+    },
+    {
+      "slug": "anniversary",
+      "nameKo": "기념일",
+      "count": 30,
+      "file": "anniversary.json"
+    },
+    {
+      "slug": "first_date",
+      "nameKo": "첫데이트",
+      "count": 30,
+      "file": "first_date.json"
+    },
+    {
+      "slug": "gift",
+      "nameKo": "선물",
+      "count": 30,
+      "file": "gift.json"
+    },
+    {
+      "slug": "flowers",
+      "nameKo": "꽃",
+      "count": 30,
+      "file": "flowers.json"
+    },
+    {
+      "slug": "subway",
+      "nameKo": "지하철",
+      "count": 30,
+      "file": "subway.json"
+    },
+    {
+      "slug": "bus",
+      "nameKo": "버스",
+      "count": 30,
+      "file": "bus.json"
+    },
+    {
+      "slug": "taxi",
+      "nameKo": "택시",
+      "count": 30,
+      "file": "taxi.json"
+    },
+    {
+      "slug": "bar",
+      "nameKo": "술",
+      "count": 30,
+      "file": "bar.json"
+    },
+    {
+      "slug": "drinking",
+      "nameKo": "음주",
+      "count": 30,
+      "file": "drinking.json"
+    },
+    {
+      "slug": "hangover",
+      "nameKo": "해장",
+      "count": 30,
+      "file": "hangover.json"
+    },
+    {
+      "slug": "sick",
+      "nameKo": "감기",
+      "count": 30,
+      "file": "sick.json"
+    },
+    {
+      "slug": "pet",
+      "nameKo": "반려동물",
+      "count": 30,
+      "file": "pet.json"
+    },
+    {
+      "slug": "cat",
+      "nameKo": "고양이",
+      "count": 30,
+      "file": "cat.json"
+    },
+    {
+      "slug": "dog",
+      "nameKo": "강아지",
+      "count": 30,
+      "file": "dog.json"
+    },
+    {
+      "slug": "family_dinner",
+      "nameKo": "가족식사",
+      "count": 30,
+      "file": "family_dinner.json"
+    },
+    {
+      "slug": "wedding_guest",
+      "nameKo": "결혼식",
+      "count": 30,
+      "file": "wedding_guest.json"
+    },
+    {
+      "slug": "moving",
+      "nameKo": "이사",
+      "count": 30,
+      "file": "moving.json"
+    }
+  ]
+}
