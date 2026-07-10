@@ -290,16 +290,18 @@ export class PhotoSelectorService {
       message = dynamicConversationService.styleByStage(
         message,
         uc?.relationshipLevel ?? 1,
-        user.name
+        user.name,
+        characterSlug
       );
-      message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name);
+      message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name, characterSlug);
       message = relationshipEventEngine.styleMessage(
         message,
         user.name,
         tier,
-        tier !== 'low'
+        tier !== 'low',
+        characterSlug
       );
-      message = messageVariation.finalize(message, user.name, tier !== 'low');
+      message = messageVariation.finalize(message, user.name, tier !== 'low', characterSlug);
 
       return {
         photoId: selected.photoId,
@@ -339,6 +341,7 @@ export class PhotoSelectorService {
     if (!photo) return null;
 
     const dnaMap = await adaptivePersonalityEngine.getDnaMap(userCharacterId);
+    const characterSlug = this.resolveCharacterSlug(characterId) ?? 'yuna';
     let message = await this.selectMessage(
       category,
       user.name,
@@ -350,16 +353,18 @@ export class PhotoSelectorService {
     message = dynamicConversationService.styleByStage(
       message,
       uc?.relationshipLevel ?? 1,
-      user.name
+      user.name,
+      characterSlug
     );
-    message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name);
+    message = adaptivePersonalityEngine.applyAdaptiveDialogue(message, dnaMap, user.name, characterSlug);
     message = relationshipEventEngine.styleMessage(
       message,
       user.name,
       tier,
-      tier !== 'low'
+      tier !== 'low',
+      characterSlug
     );
-    message = messageVariation.finalize(message, user.name, tier !== 'low');
+    message = messageVariation.finalize(message, user.name, tier !== 'low', characterSlug);
 
     return {
       photoId: photo.id,

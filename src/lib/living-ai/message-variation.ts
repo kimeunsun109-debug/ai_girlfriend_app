@@ -1,4 +1,5 @@
 import { LIVING_AI_CONFIG } from '../../config/living-ai.config.js';
+import { polishCharacterMessage } from '../natural-conversation/index.js';
 
 const RECENT_EMOJIS: string[] = [];
 const RECENT_OPENERS: string[] = [];
@@ -46,7 +47,7 @@ export class MessageVariation {
     return message;
   }
 
-  finalize(message: string, userName: string, useName: boolean): string {
+  finalize(message: string, userName: string, useName: boolean, characterSlug?: string): string {
     let result = this.avoidGreeting(message);
     result = this.diversifyEmoji(result);
 
@@ -54,7 +55,7 @@ export class MessageVariation {
       result = `${userName}~ ${result}`;
     }
 
-    return result.slice(0, 150);
+    return polishCharacterMessage(result, { userName, useName, characterSlug });
   }
 }
 

@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { LIVING_AI_CONFIG } from '../../config/living-ai.config.js';
 import type { LivingPushContext } from './types.js';
 import { randomPick } from '../../utils/push.utils.js';
+import { polishCharacterMessage } from '../natural-conversation/index.js';
 import { relationshipJourneyService } from '../relationship-journey/relationship-journey.service.js';
 
 const prisma = new PrismaClient();
@@ -66,17 +67,17 @@ export class RelationshipEventEngine {
     message: string,
     userName: string,
     tier: AffectionTier,
-    useName: boolean
+    useName: boolean,
+    characterSlug?: string
   ): string {
     const behavior = this.getBehavior(tier);
+    let result = message;
 
     if (tier === 'low') {
-      return message.length > behavior.maxMessageLength
+      result = message.length > behavior.maxMessageLength
         ? message.slice(0, behavior.maxMessageLength) + '...'
         : message;
-    }
-
-    if (tier === 'high') {
+    } else if (tier === 'high') {
       const highExtras = [
         '보고 싶어 💕',
         '심심해~',
@@ -84,17 +85,17 @@ export class RelationshipEventEngine {
         '나 생각해?',
       ];
       if (Math.random() < 0.25) {
-        message = `${message} ${randomPick(highExtras)}`;
+        result = `${result} ${randomPick(highExtras)}`;
       }
-      if (Math.random() < behavior.nameFrequency && useName && !message.includes(userName)) {
-        message = `${userName}~ ${message}`;
+      if (Math.random() < behavior.nameFrequency && useName && !result.includes(userName)) {
+        result = `${userName}~ ${result}`;
       }
       if (Math.random() < 0.15) {
-        message = randomPick(['ㅋㅋ ', '헤헤 ', '']) + message;
+        result = randomPick(['ㅋㅋ ', '헤헤 ', '']) + result;
       }
     }
 
-    return message;
+    return polishCharacterMessage(result, { userName, useName, characterSlug });
   }
 
   buildPushContext(

@@ -124,8 +124,8 @@ export class AdaptivePersonalityEngine {
     return personalityDNA.getDnaMap(userCharacterId);
   }
 
-  applyAdaptiveDialogue(message: string, dnaMap: Partial<Record<PersonalityTrait, number>>, userName: string): string {
-    return adaptiveDialogueEngine.styleMessage(message, dnaMap, userName);
+  applyAdaptiveDialogue(message: string, dnaMap: Partial<Record<PersonalityTrait, number>>, userName: string, characterSlug?: string): string {
+    return adaptiveDialogueEngine.styleMessage(message, dnaMap, userName, characterSlug);
   }
 
   adjustEmotion(base: any, dnaMap: Partial<Record<PersonalityTrait, number>>, context: { lateReply?: boolean; compliment?: boolean }) {

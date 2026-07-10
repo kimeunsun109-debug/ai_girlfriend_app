@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { LIVING_AI_CONFIG } from '../../config/living-ai.config.js';
 import { addHours } from 'date-fns';
+import { polishCharacterMessage } from '../natural-conversation/index.js';
 
 const prisma = new PrismaClient();
 
@@ -102,7 +103,7 @@ export class MemoryReminderEngine {
     };
 
     const msgs = templates[memory.topic] ?? [`${memory.topic} 괜찮아?`];
-    const msg = msgs[Math.floor(Math.random() * msgs.length)];
+    const msg = polishCharacterMessage(msgs[Math.floor(Math.random() * msgs.length)]!);
 
     await prisma.shortTermMemory.update({
       where: { id: memory.id },

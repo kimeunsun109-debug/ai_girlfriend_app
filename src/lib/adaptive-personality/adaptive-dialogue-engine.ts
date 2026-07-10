@@ -1,11 +1,13 @@
 import type { PersonalityTrait } from '@prisma/client';
+import { polishCharacterMessage } from '../natural-conversation/index.js';
 import { TRAIT_LABELS } from '../../config/adaptive-personality.config.js';
 
 export class AdaptiveDialogueEngine {
   styleMessage(
     baseMessage: string,
     dnaMap: Partial<Record<PersonalityTrait, number>>,
-    userName: string
+    userName: string,
+    characterSlug?: string
   ): string {
     let message = baseMessage;
 
@@ -21,7 +23,7 @@ export class AdaptiveDialogueEngine {
     if (attachment > 70 && Math.random() < 0.2) message = `${message} 보고 싶었어`;
     if (jealousy > 65 && Math.random() < 0.1) message = `${message} ...나만 봐줘`;
 
-    return message.slice(0, 160);
+    return polishCharacterMessage(message, { userName, characterSlug });
   }
 
   reflectionLine(

@@ -1,5 +1,6 @@
 import { DYNAMIC_DIALOGUE } from '../../config/relationship-journey.config.js';
 import { randomPick } from '../../utils/push.utils.js';
+import { polishCharacterMessage } from '../natural-conversation/index.js';
 
 /**
  * DynamicConversationService — 관계 단계별 다른 대사
@@ -14,32 +15,32 @@ export class DynamicConversationService {
     return options ? randomPick(options) : '';
   }
 
-  styleByStage(baseMessage: string, stageLevel: number, userName: string): string {
+  styleByStage(baseMessage: string, stageLevel: number, userName: string, characterSlug?: string): string {
+    let message = baseMessage;
     if (stageLevel <= 2) {
-      return baseMessage.replace(/[~❤️💕😊]/g, '').trim();
-    }
-    if (stageLevel <= 4) {
-      return baseMessage;
-    }
-    if (stageLevel <= 6) {
+      message = baseMessage.replace(/[~❤️💕😊]/g, '').trim();
+    } else if (stageLevel <= 4) {
+      message = baseMessage;
+    } else if (stageLevel <= 6) {
       if (!baseMessage.includes(userName) && Math.random() < 0.4) {
-        return `${userName}~ ${baseMessage}`;
+        message = `${userName}~ ${baseMessage}`;
       }
-      return baseMessage;
+    } else {
+      const suffixes = ['❤️', '💕', '항상 고마워'];
+      if (Math.random() < 0.3) {
+        message = `${baseMessage} ${randomPick(suffixes)}`;
+      }
     }
-    const suffixes = ['❤️', '💕', '항상 고마워'];
-    if (Math.random() < 0.3) {
-      return `${baseMessage} ${randomPick(suffixes)}`;
-    }
-    return baseMessage;
+    return polishCharacterMessage(message, { userName, stageLevel, characterSlug });
   }
 
   getAnniversaryMessage(stageLevel: number, label: string, characterName: string): string {
-    const base = `우리 ${label}이야! ${characterName}와(과) 함께해서 행복해`;
-    if (stageLevel <= 3) return `${label}… 고마워.`;
-    if (stageLevel <= 5) return `헤헤 ${label}! 설레💕`;
-    if (stageLevel <= 7) return `${label}이네… 오래 함께하자 ${characterName}❤️`;
-    return `평생 함께할 ${label}. 너밖에 없어❤️`;
+    let msg: string;
+    if (stageLevel <= 3) msg = `${label}… 고마워.`;
+    else if (stageLevel <= 5) msg = `헤헤 ${label}! 설레💕`;
+    else if (stageLevel <= 7) msg = `${label}이네… 오래 함께하자 ${characterName}❤️`;
+    else msg = `평생 함께할 ${label}. 너밖에 없어❤️`;
+    return polishCharacterMessage(msg, { stageLevel });
   }
 
   getThanksMessage(stageLevel: number): string {

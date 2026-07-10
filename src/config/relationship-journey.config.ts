@@ -110,8 +110,8 @@ export const REWARD_LABELS: Record<string, string> = {
 /** 관계 단계별 동적 대화 템플릿 */
 export const DYNAMIC_DIALOGUE: Record<string, Record<number, string[]>> = {
   thanks: {
-    1: ['고마워.', '감사해요.'],
-    2: ['고마워!', '고마워요~'],
+    1: ['고마워.', '고마워'],
+    2: ['고마워!', '고마워~'],
     3: ['고마워 ㅎㅎ', '고마워! 좋아'],
     4: ['고마워~ 오늘도 힘내', '고마워! 덕분에 기분 좋아'],
     5: ['헤헤 고마워😊', '고마워~ 설레'],

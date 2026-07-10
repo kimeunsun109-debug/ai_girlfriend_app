@@ -208,6 +208,19 @@ npm run prompts:build    # assets/prompts/ 재생성
 
 상세: [docs/CHARACTER_IMAGE_FACTORY.md](docs/CHARACTER_IMAGE_FACTORY.md)
 
+## Natural Conversation (사람처럼 대화)
+
+목표는 **"AI와 대화"가 아니라 "사람과 대화"** 입니다. 상세: **[docs/NATURAL_CONVERSATION.md](docs/NATURAL_CONVERSATION.md)**
+
+- AI 티 나는 표현 자동 제거 ("이해합니다", "공감합니다" 등)
+- 감정 반응 우선, 1~3문장 카톡 스타일
+- 푸시·후속·관계·DNA 말투 전부 `polishCharacterMessage()` 경유
+
+```bash
+POST /api/conversation/react
+{ "userCharacterId": "...", "content": "나 방금 치킨 시켰다" }
+```
+
 ## Living AI (살아있는 여자친구)
 
 AI가 먼저 하루를 살아가며 연락합니다. 상세: **[docs/LIVING_AI.md](docs/LIVING_AI.md)**

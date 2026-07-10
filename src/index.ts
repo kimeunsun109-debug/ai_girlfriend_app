@@ -9,6 +9,7 @@ import { photosRouter } from './routes/photos.routes.js';
 import { livingRouter } from './routes/living.routes.js';
 import { relationshipRouter } from './routes/relationship.routes.js';
 import { personalityRouter } from './routes/personality.routes.js';
+import { conversationRouter } from './routes/conversation.routes.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/photos', photosRouter);
 app.use('/api/living', livingRouter);
 app.use('/api', relationshipRouter);
 app.use('/api', personalityRouter);
+app.use('/api/conversation', conversationRouter);
 app.use('/api/push', pushRouter);
 
 app.listen(PORT, () => {

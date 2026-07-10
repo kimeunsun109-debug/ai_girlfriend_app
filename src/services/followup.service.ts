@@ -12,6 +12,7 @@ import {
   dynamicConversationService,
 } from '../lib/relationship-journey/index.js';
 import { adaptivePersonalityEngine } from '../lib/adaptive-personality/index.js';
+import { naturalConversationEngine, polishCharacterMessage } from '../lib/natural-conversation/index.js';
 import {
   randomPick,
   personalizeMessage,
@@ -30,7 +31,7 @@ export class FollowUpService {
 
     const pushLog = await prisma.pushLog.findUnique({
       where: { id: pushLogId },
-      include: { user: true },
+      include: { user: true, character: true },
     });
     if (!pushLog) return;
 
@@ -40,13 +41,17 @@ export class FollowUpService {
       if (scenario.condition !== 'no_reply') continue;
 
       const scheduledAt = addMinutes(now, scenario.delayMinutes);
-      const message = randomPick(scenario.messages);
+      const raw = randomPick(scenario.messages);
+      const message = polishCharacterMessage(
+        personalizeMessage(raw, pushLog.user.name, true),
+        { userName: pushLog.user.name, characterSlug: pushLog.character.slug ?? 'yuna' }
+      );
 
       await prisma.followUpScenario.create({
         data: {
           pushLogId,
           stage: scenario.stage,
-          message: personalizeMessage(message, pushLog.user.name, true),
+          message,
           scheduledAt,
           triggerCondition: scenario.condition,
         },
@@ -168,7 +173,7 @@ export class FollowUpService {
     // Ensure userCharacterId belongs to the pushLog (defense-in-depth; route also validates)
     const userCharacter = await prisma.userCharacter.findUnique({
       where: { id: userCharacterId },
-      select: { userId: true, characterId: true, relationshipLevel: true, character: { select: { name: true } } },
+      select: { userId: true, characterId: true, relationshipLevel: true, character: { select: { name: true, slug: true } } },
     });
     if (!userCharacter) return;
     if (userCharacter.userId !== pushLog.userId || userCharacter.characterId !== pushLog.characterId) return;
@@ -286,17 +291,39 @@ export class FollowUpService {
 
     if (!condition) return;
 
+    if (!condition) {
+      const reaction = naturalConversationEngine.reactToUserMessage(content, {
+        userName: pushLog.user.name,
+        characterSlug: userCharacter.character.slug ?? 'yuna',
+        stageLevel: userCharacter.relationshipLevel,
+        useName: true,
+      });
+      await prisma.chatMessage.create({
+        data: {
+          userCharacterId,
+          pushLogId,
+          sender: 'CHARACTER',
+          content: reaction,
+          hasEmoji: hasEmoji(reaction),
+        },
+      });
+      return;
+    }
+
     const scenario = template.followUpScenarios.find((s) => s.condition === condition);
     if (!scenario) return;
 
+    const characterSlug = userCharacter.character.slug ?? 'yuna';
     const responseMessage = messageVariation.finalize(
       dynamicConversationService.styleByStage(
         personalizeMessage(randomPick(scenario.messages), pushLog.user.name, true),
         userCharacter.relationshipLevel ?? 1,
-        pushLog.user.name
+        pushLog.user.name,
+        characterSlug
       ),
       pushLog.user.name,
-      true
+      true,
+      characterSlug
     );
 
     // 캐릭터 응답 메시지 생성
