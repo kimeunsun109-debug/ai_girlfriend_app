@@ -4,6 +4,7 @@ import { buildPhotoUrl } from '../lib/photo-catalog/index-manager.js';
 import { characterImageFactory } from '../lib/photo-catalog/image-factory.js';
 import { promptCatalogReader } from '../lib/photo-catalog/prompt-catalog-reader.js';
 import { param } from '../utils/route.utils.js';
+import { parseBoundedInt, parseOptionalSeed } from '../utils/query-parse.utils.js';
 
 export const photosRouter = Router();
 
@@ -40,8 +41,21 @@ photosRouter.get('/prompt', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'character required' });
   }
 
-  const count = Math.min(parseInt(req.query.count as string, 10) || 1, 20);
-  const seed = req.query.seed ? parseInt(req.query.seed as string, 10) : undefined;
+  if (!characterImageFactory.resolveSlug(character)) {
+    return res.status(404).json({ error: 'Unknown character' });
+  }
+
+  const countParsed = parseBoundedInt(req.query.count, { min: 1, max: 20, fallback: 1 });
+  if (!countParsed.ok) {
+    return res.status(400).json({ error: `Invalid count: ${countParsed.error}` });
+  }
+
+  const seedRaw = req.query.seed;
+  if (seedRaw != null && seedRaw !== '' && parseOptionalSeed(seedRaw) === undefined) {
+    return res.status(400).json({ error: 'Invalid seed: must be a valid integer' });
+  }
+  const seed = parseOptionalSeed(seedRaw);
+
   const category = req.query.category as string | undefined;
   const emotion = req.query.emotion as string | undefined;
 
@@ -51,14 +65,10 @@ photosRouter.get('/prompt', (req: Request, res: Response) => {
       ? { emotion }
       : undefined;
 
-  const prompts = characterImageFactory.generateBatch(character, count, {
+  const prompts = characterImageFactory.generateBatch(character, countParsed.value, {
     scenario: scenarioOverride,
     seed,
   });
-
-  if (!prompts.length) {
-    return res.status(404).json({ error: 'Unknown character' });
-  }
 
   res.json({ count: prompts.length, prompts });
 });
@@ -93,7 +103,11 @@ photosRouter.get('/prompts/:characterSlug/:category', (req: Request, res: Respon
 photosRouter.get('/prompts/:characterSlug/:category/random', (req: Request, res: Response) => {
   const slug = param(req.params.characterSlug);
   const category = param(req.params.category);
-  const seed = req.query.seed ? parseInt(req.query.seed as string, 10) : undefined;
+  const seedRaw = req.query.seed;
+  if (seedRaw != null && seedRaw !== '' && parseOptionalSeed(seedRaw) === undefined) {
+    return res.status(400).json({ error: 'Invalid seed: must be a valid integer' });
+  }
+  const seed = parseOptionalSeed(seedRaw);
   const prompt = promptCatalogReader.getRandomPrompt(slug, category, seed);
   if (!prompt) return res.status(404).json({ error: 'No prompts in category' });
   res.json(prompt);

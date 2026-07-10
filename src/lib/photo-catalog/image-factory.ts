@@ -23,6 +23,7 @@ import {
   getCharacterSpecBySlug,
   type CharacterVisualSpec,
 } from '../../data/character-specs.js';
+import { getPromptCategory } from '../../config/prompt-categories.config.js';
 import { resolveCharacterSlug } from './types.js';
 
 export interface ImageScenario {
@@ -161,7 +162,10 @@ export class CharacterImageFactory {
     const spec = getCharacterSpecBySlug(slug);
     if (!spec) return null;
 
-    const seed = options.seed ?? Math.floor(Math.random() * 2 ** 31);
+    const seed =
+      options.seed != null && Number.isFinite(options.seed)
+        ? options.seed
+        : Math.floor(Math.random() * 2 ** 31);
     const rng = mulberry32(seed);
     const scenario = pickScenario(rng, options.scenario);
     const dnaEn = CHARACTER_DNA_LABELS[slug] ?? spec.characterDNA;
@@ -194,31 +198,37 @@ export class CharacterImageFactory {
     return results;
   }
 
-  /** Map prompt-catalog category slug to scenario overrides */
+  /** Map category slug to scenario overrides (prompt catalog + photo-catalog aliases) */
   scenarioFromCategory(categorySlug: string, emotion?: string): Partial<ImageScenario> {
-    // Lazy import avoided — use inline map for legacy slugs; catalog uses scenarioDefaults directly
-    const legacy: Record<string, Partial<ImageScenario>> = {
-      hair: { location: 'hair salon mirror', action: 'at hair salon', camera: 'mirror selfie' },
-      coffee: { location: 'cafe', action: 'drinking coffee', camera: 'photo on table pointing up' },
-      rain: { weather: 'rain', location: 'home bedroom', action: 'looking out the window' },
-      nail: { location: 'cafe', action: 'showing nails', camera: 'iPhone front selfie' },
-      selfie: { camera: 'iPhone front selfie', action: 'taking selfie' },
-      game: { location: 'home bedroom', action: 'gaming', outfit: 'hoodie' },
-      walk: { location: 'neighborhood walk', action: 'walking', camera: 'friend took the photo' },
-      tteokbokki: { location: 'restaurant', action: 'eating food' },
-      happy: { emotion: 'happy', expression: 'natural subtle smile' },
-      sad: { emotion: 'lonely', expression: 'pouty sulky face' },
-      sleepy: { emotion: 'sleepy', expression: 'sleepy drowsy look', time: 'night' },
+    const PHOTO_CATALOG_ALIASES: Record<string, string> = {
+      hair: 'hair_salon',
+      tteokbokki: 'food',
+      coffee: 'cafe',
+      weekend: 'walk',
+      alcohol: 'bar',
+      drinking: 'bar',
     };
 
-    const base = legacy[categorySlug] ?? {};
-    if (emotion && legacy[emotion]) {
-      return { ...base, ...legacy[emotion] };
-    }
+    const resolvedSlug = PHOTO_CATALOG_ALIASES[categorySlug] ?? categorySlug;
+    const catalog = getPromptCategory(resolvedSlug);
+    const base: Partial<ImageScenario> = catalog
+      ? { ...catalog.scenarioDefaults }
+      : { ...this.legacyPhotoCategoryDefaults(categorySlug) };
+
     if (emotion) {
       return { ...base, emotion };
     }
     return base;
+  }
+
+  /** Fallback for photo-catalog slugs not in prompt catalog */
+  private legacyPhotoCategoryDefaults(categorySlug: string): Partial<ImageScenario> {
+    const emotionAsCategory: Record<string, Partial<ImageScenario>> = {
+      happy: { emotion: 'happy', expression: 'natural subtle smile' },
+      sad: { emotion: 'lonely', expression: 'pouty sulky face' },
+      sleepy: { emotion: 'sleepy', expression: 'sleepy drowsy look', time: 'night' },
+    };
+    return emotionAsCategory[categorySlug] ?? {};
   }
 }
 

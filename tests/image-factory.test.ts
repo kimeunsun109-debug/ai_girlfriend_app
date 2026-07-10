@@ -45,6 +45,26 @@ describe('Character Image Factory', () => {
     const override = characterImageFactory.scenarioFromCategory('hair', 'shy');
     expect(override.location).toContain('hair salon');
     expect(override.camera).toBe('mirror selfie');
+    expect(override.emotion).toBe('shy');
+  });
+
+  it('uses prompt catalog for morning category', () => {
+    const override = characterImageFactory.scenarioFromCategory('morning');
+    expect(override.time).toBe('morning');
+    expect(override.action).toBe('yawning');
+  });
+
+  it('emotion param only overrides emotion field, not full scenario', () => {
+    const override = characterImageFactory.scenarioFromCategory('cafe', 'sad');
+    expect(override.location).toBe('cafe');
+    expect(override.action).toBe('drinking coffee');
+    expect(override.emotion).toBe('sad');
+  });
+
+  it('maps photo-catalog aliases (tteokbokki -> food)', () => {
+    const override = characterImageFactory.scenarioFromCategory('tteokbokki');
+    expect(override.location).toBe('restaurant');
+    expect(override.action).toBe('eating food');
   });
 
   it('generateBatch returns requested count', () => {

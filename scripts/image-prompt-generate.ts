@@ -12,6 +12,8 @@
 import { writeFileSync } from 'fs';
 import { characterImageFactory } from '../src/lib/photo-catalog/image-factory.js';
 
+const BOOL_FLAGS = new Set(['all', 'json']);
+
 function parseArgs(argv: string[]) {
   const args = argv.slice(2);
   const flags: Record<string, string> = {};
@@ -22,7 +24,8 @@ function parseArgs(argv: string[]) {
     if (a.startsWith('--')) {
       const key = a.slice(2);
       const next = args[i + 1];
-      if (next && !next.startsWith('--')) {
+      // Boolean flags (--all, --json) never consume the next token as their value
+      if (!BOOL_FLAGS.has(key) && next && !next.startsWith('--')) {
         flags[key] = next;
         i++;
       } else {
@@ -36,16 +39,37 @@ function parseArgs(argv: string[]) {
   return { flags, positional };
 }
 
+function parseCount(raw: string | undefined): number {
+  const n = parseInt(raw ?? '1', 10);
+  if (!Number.isFinite(n) || n < 1) {
+    console.error('count must be a positive integer');
+    process.exit(1);
+  }
+  return n;
+}
+
+function parseSeed(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) {
+    console.error('seed must be a valid integer');
+    process.exit(1);
+  }
+  return n;
+}
+
 async function main() {
   const { flags, positional } = parseArgs(process.argv);
   const json = flags.json === 'true';
   const outFile = flags.out;
-  const seed = flags.seed ? parseInt(flags.seed, 10) : undefined;
+  const seed = parseSeed(flags.seed);
   const category = flags.category;
   const emotion = flags.emotion;
 
-  const all = flags.all === 'true' || positional[0] === '--all';
-  const count = parseInt(positional[1] ?? flags.count ?? '1', 10);
+  const all = flags.all === 'true';
+  const count = parseCount(
+    all ? (positional[0] ?? flags.count) : (positional[1] ?? flags.count)
+  );
 
   let characters: string[];
   if (all) {
