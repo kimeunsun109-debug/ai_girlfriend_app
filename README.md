@@ -12,6 +12,20 @@ AI 연인이 실제 사람처럼 자연스러운 사진과 메시지를 보내�
 - **개인화**: 사용자 이름 자연스럽게 사용
 - **중복 방지**: 같은 사진/멘트/시간/패턴 반복 금지
 
+## Character Meet UI (만나러 들어온 느낌)
+
+캐릭터 **선택 리스트**가 아니라, **누군가를 만나러 온** 프리미엄 모바일 홈입니다. 상세: **[docs/CHARACTER_MEET_UI.md](docs/CHARACTER_MEET_UI.md)**
+
+```bash
+npm run dev          # API :3000
+npm run web:dev      # Meet UI :3001 → http://localhost:3001
+```
+
+- Hero 카드 + Today's Pick · Living Photo 애니메이션
+- 현재 상태 (☕ 카페에서 쉬는 중) · 마지막 대화 · 감성 상태 (호감도 숫자 ❌)
+- 카드 탭 → 채팅 전환 (Framer Motion shared layout)
+- 레거시 사진 갤러리: `/gallery.html`
+
 ## 주요 기능
 
 ### 1. 사진 푸시 시스템

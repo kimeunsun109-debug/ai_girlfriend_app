@@ -3,76 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PickMeTalk — 캐릭터 사진 갤러리</title>
+  <title>PickMeTalk</title>
   <style>
-    body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-    button { padding: 0.6rem 1rem; margin: 0.25rem 0; }
-    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0.5rem 0 1.5rem; }
-    .photo-grid img { width: 100%; border-radius: 6px; aspect-ratio: 1; object-fit: cover; }
-    .tag { font-size: 0.75rem; color: #666; }
-    h2 { border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+      background: #faf6f1;
+      color: #2c2420;
+      text-align: center;
+    }
+    a {
+      display: inline-block;
+      margin: 0.5rem;
+      padding: 0.85rem 1.25rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.75);
+      color: #2c2420;
+      text-decoration: none;
+      font-weight: 600;
+      box-shadow: 0 12px 40px -16px rgba(180,140,120,0.4);
+    }
+    p { color: #6b5f58; line-height: 1.6; }
   </style>
 </head>
 <body>
-  <h1>PickMeTalk 캐릭터 갤러리</h1>
-  <p>상황별 사진 카탈로그 미리보기 · <a href="/memories.html">❤️ 우리의 추억</a> · <a href="/personality.html">🌱 성장한 유나</a></p>
-  <button id="subscribe">Web Push 구독</button>
-  <span id="status"></span>
-  <div id="gallery"></div>
-  <script src="/push-client.js"></script>
-  <script>
-    const CHARS = [
-      { slug: 'yuna', name: '😊 유나' },
-      { slug: 'narin', name: '😎 나린' },
-      { slug: 'yunseo', name: '📚 윤서' },
-      { slug: 'eunha', name: '🎨 은하' },
-      { slug: 'jiyu', name: '⛳ 지유' },
-    ];
-
-    const gallery = document.getElementById('gallery');
-
-    async function loadGallery() {
-      for (const c of CHARS) {
-        const h = document.createElement('h2');
-        h.textContent = c.name;
-        gallery.appendChild(h);
-
-        const meta = document.createElement('p');
-        meta.className = 'tag';
-        gallery.appendChild(meta);
-
-        const grid = document.createElement('div');
-        grid.className = 'photo-grid';
-        gallery.appendChild(grid);
-
-        try {
-          const res = await fetch(`/assets/photos/${c.slug}/photos-index.json`);
-          if (!res.ok) throw new Error('index not found');
-          const index = await res.json();
-          meta.textContent = `${index.totalCount}장 · ${[...new Set(index.photos.map(p => p.category))].join(', ')}`;
-          index.photos.slice(0, 12).forEach(photo => {
-            const img = document.createElement('img');
-            img.src = `/assets/photos/${photo.relativePath}`;
-            img.alt = `${photo.category} (${photo.emotion})`;
-            img.title = `${photo.category} · ${photo.emotion}`;
-            grid.appendChild(img);
-          });
-        } catch (e) {
-          meta.textContent = '사진 인덱스 없음 — npm run photos:migrate 실행';
-        }
-      }
-    }
-
-    loadGallery();
-
-    document.getElementById('subscribe').onclick = async () => {
-      try {
-        await PickMePush.ensureSubscribed('00000000-0000-0000-0000-000000000010');
-        document.getElementById('status').textContent = ' ✓ 구독됨';
-      } catch (e) {
-        document.getElementById('status').textContent = ' 오류: ' + e.message;
-      }
-    };
-  </script>
+  <h1>PickMeTalk</h1>
+  <p>캐릭터를 고르는 게 아니라,<br>만나러 가는 앱이에요.</p>
+  <p><a href="http://localhost:3001">만나기 화면 열기 →</a></p>
+  <p style="font-size:0.85rem;margin-top:2rem">
+    <a href="/gallery.html">사진 갤러리</a>
+    · <a href="/memories.html">추억</a>
+    · <a href="/personality.html">성장</a>
+  </p>
+  <p style="font-size:0.75rem;margin-top:2rem">Meet UI: <code>npm run web:dev</code> (포트 3001)</p>
 </body>
 </html>

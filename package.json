@@ -22,7 +22,10 @@
     "prompts:build": "tsx scripts/build-prompt-catalog.ts",
     "prompts:verify": "tsx scripts/build-prompt-catalog.ts verify",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "web:dev": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web",
+    "web:start": "npm run start --prefix web"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

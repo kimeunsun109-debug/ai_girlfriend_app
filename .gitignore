@@ -4,3 +4,5 @@ dist/
 *.log
 .DS_Store
 test-fixtures/
+web/node_modules/
+web/.next/
