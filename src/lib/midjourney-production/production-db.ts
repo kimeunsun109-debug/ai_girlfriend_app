@@ -11,6 +11,7 @@ import {
   type ProductionRunStatus,
   type FaceReviewStatus,
 } from '../../config/midjourney-production.config.js';
+import { applyPhotoProductionMigrations } from '../photo-universe/catalog-migrations.js';
 import { ensureUniverseDirs } from '../photo-universe/paths.js';
 
 const PRODUCTION_SCHEMA = `
@@ -90,16 +91,6 @@ CREATE TABLE IF NOT EXISTS review_queue (
 CREATE INDEX IF NOT EXISTS idx_review_pending ON review_queue(status, character);
 `;
 
-const PHOTO_MIGRATIONS = [
-  `ALTER TABLE photos ADD COLUMN face_similarity REAL`,
-  `ALTER TABLE photos ADD COLUMN face_verified INTEGER DEFAULT 0`,
-  `ALTER TABLE photos ADD COLUMN review_status TEXT DEFAULT 'PENDING'`,
-  `ALTER TABLE photos ADD COLUMN prompt_id TEXT`,
-  `ALTER TABLE photos ADD COLUMN queue_job_id TEXT`,
-  `ALTER TABLE photos ADD COLUMN noise_score REAL`,
-  `ALTER TABLE photos ADD COLUMN face_count INTEGER`,
-];
-
 export interface ProductionRun {
   id: string;
   status: ProductionRunStatus;
@@ -150,13 +141,7 @@ export class ProductionDb {
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.db.exec(PRODUCTION_SCHEMA);
-    for (const sql of PHOTO_MIGRATIONS) {
-      try {
-        this.db.exec(sql);
-      } catch {
-        /* column exists */
-      }
-    }
+    applyPhotoProductionMigrations(this.db);
   }
 
   close(): void {
@@ -319,6 +304,13 @@ export class ProductionDb {
       | Record<string, unknown>
       | undefined;
     return row ? this.rowToJob(row) : null;
+  }
+
+  listJobsForRun(runId: string): ProductionQueueJob[] {
+    const rows = this.db
+      .prepare('SELECT * FROM production_queue_jobs WHERE run_id = ? ORDER BY sequence ASC')
+      .all(runId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToJob(r));
   }
 
   incrementCompletedJobs(runId: string): void {

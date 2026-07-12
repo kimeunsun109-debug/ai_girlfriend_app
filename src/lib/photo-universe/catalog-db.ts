@@ -5,6 +5,7 @@ import { dirname } from 'path';
 import { PHOTO_UNIVERSE_PATHS } from '../../config/photo-universe.config.js';
 import type { CharacterPhotoIndex } from '../photo-catalog/types.js';
 import { CHARACTER_SLUG_MAP } from '../photo-catalog/types.js';
+import { applyPhotoProductionMigrations } from './catalog-migrations.js';
 import { characterIndexPath, ensureUniverseDirs } from './paths.js';
 import type { UniversePhotoMeta, UniverseSearchQuery } from './types.js';
 
@@ -67,6 +68,7 @@ export class UniverseCatalogDb {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(SCHEMA);
+    applyPhotoProductionMigrations(this.db);
   }
 
   close(): void {
