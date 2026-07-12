@@ -222,6 +222,16 @@ npm run prompts:build    # assets/prompts/ 재생성
 
 상세: [docs/CHARACTER_IMAGE_FACTORY.md](docs/CHARACTER_IMAGE_FACTORY.md)
 
+### Photo Universe (USB + Midjourney)
+
+Midjourney 생성 이미지는 USB(`PHOTO_LIBRARY_ROOT`)에 저장하고, 프로젝트는 메타데이터·SQLite 카탈로그·썸네일만 관리합니다. 상세: **[docs/PHOTO_UNIVERSE.md](docs/PHOTO_UNIVERSE.md)**
+
+```bash
+npm run universe:scan
+npm run universe:watch
+npm run universe:prompt -- yuna cafe shy
+```
+
 ## Natural Conversation (사람처럼 대화)
 
 목표는 **"AI와 대화"가 아니라 "사람과 대화"** 입니다. 상세: **[docs/NATURAL_CONVERSATION.md](docs/NATURAL_CONVERSATION.md)**

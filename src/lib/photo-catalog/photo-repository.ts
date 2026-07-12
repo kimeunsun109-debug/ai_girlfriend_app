@@ -14,6 +14,8 @@ import {
   saveCharacterIndex,
   writePhotoMeta,
 } from './index-manager.js';
+import { PHOTO_UNIVERSE_ENABLED } from '../../config/photo-universe.config.js';
+import { getUniverseCatalog } from '../photo-universe/catalog-db.js';
 import {
   CHARACTER_SLUG_MAP,
   SUPPORTED_EXTENSIONS,
@@ -55,6 +57,23 @@ export class PhotoCatalogRepository {
 
   /** 캐릭터 + 상황(category) + 감정(emotion) 기반 사진 선택 */
   selectPhoto(query: SelectPhotoQuery): PhotoMeta | null {
+    if (PHOTO_UNIVERSE_ENABLED) {
+      const catalog = getUniverseCatalog();
+      const hits = catalog.searchFlexible({
+        character: query.characterSlug,
+        location: query.categorySlug,
+        category: query.categorySlug,
+        emotion: query.emotion,
+        excludeHashes: query.excludeHashes,
+        limit: 5,
+      });
+      if (hits.length > 0) {
+        const pick = hits[Math.floor(Math.random() * hits.length)]!;
+        catalog.incrementUsedCount(pick.contentHash);
+        return pick;
+      }
+    }
+
     const index = this.getIndex(query.characterSlug);
     if (!index || index.photos.length === 0) return null;
 

@@ -1,10 +1,19 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
+import { PHOTO_UNIVERSE_ENABLED, PHOTO_UNIVERSE_PATHS } from '../../config/photo-universe.config.js';
 import type { CharacterPhotoIndex, PhotoMeta } from './types.js';
 
+/** Legacy in-repo photos (dev / migration) */
 export const PHOTOS_ROOT = join(process.cwd(), 'assets', 'photos');
 
+export function getPhotosRoot(): string {
+  return PHOTOS_ROOT;
+}
+
 export function getCharacterIndexPath(characterSlug: string): string {
+  if (PHOTO_UNIVERSE_ENABLED) {
+    return join(PHOTO_UNIVERSE_PATHS.indexes, characterSlug, 'photos-index.json');
+  }
   return join(PHOTOS_ROOT, characterSlug, 'photos-index.json');
 }
 
@@ -33,11 +42,12 @@ export function writePhotoMeta(meta: PhotoMeta): void {
 }
 
 export function loadAllIndexes(): CharacterPhotoIndex[] {
-  if (!existsSync(PHOTOS_ROOT)) return [];
+  const root = PHOTO_UNIVERSE_ENABLED ? PHOTO_UNIVERSE_PATHS.indexes : PHOTOS_ROOT;
+  if (!existsSync(root)) return [];
 
   const indexes: CharacterPhotoIndex[] = [];
-  for (const entry of readdirSync(PHOTOS_ROOT)) {
-    const full = join(PHOTOS_ROOT, entry);
+  for (const entry of readdirSync(root)) {
+    const full = join(root, entry);
     if (!statSync(full).isDirectory()) continue;
     const index = loadCharacterIndex(entry);
     if (index) indexes.push(index);
@@ -47,5 +57,8 @@ export function loadAllIndexes(): CharacterPhotoIndex[] {
 
 export function buildPhotoUrl(relativePath: string, baseUrl?: string): string {
   const base = baseUrl ?? process.env.PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  if (PHOTO_UNIVERSE_ENABLED) {
+    return `${base}/library/${relativePath.split('/').map(encodeURIComponent).join('/')}`;
+  }
   return `${base}/assets/photos/${relativePath}`;
 }

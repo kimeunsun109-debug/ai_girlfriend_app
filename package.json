@@ -21,6 +21,9 @@
     "photos:prompt": "tsx scripts/image-prompt-generate.ts",
     "prompts:build": "tsx scripts/build-prompt-catalog.ts",
     "prompts:verify": "tsx scripts/build-prompt-catalog.ts verify",
+    "universe:scan": "tsx scripts/photos-universe-scan.ts",
+    "universe:watch": "tsx scripts/photos-universe-watch.ts",
+    "universe:prompt": "tsx scripts/photos-universe-prompt.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "web:dev": "npm run dev --prefix web",
@@ -39,7 +42,10 @@
     "ioredis": "^5.4.2",
     "uuid": "^11.0.3",
     "web-push": "^3.6.7",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "sharp": "^0.33.5",
+    "chokidar": "^4.0.3",
+    "better-sqlite3": "^11.8.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -47,6 +53,7 @@
     "@types/node": "^22.10.2",
     "@types/uuid": "^10.0.0",
     "@types/web-push": "^3.6.4",
+    "@types/better-sqlite3": "^7.6.12",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",

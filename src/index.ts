@@ -11,6 +11,7 @@ import { relationshipRouter } from './routes/relationship.routes.js';
 import { personalityRouter } from './routes/personality.routes.js';
 import { conversationRouter } from './routes/conversation.routes.js';
 import { meetRouter } from './routes/meet.routes.js';
+import { universeRouter, serveLibraryFile } from './routes/universe.routes.js';
 
 dotenv.config();
 
@@ -24,6 +25,15 @@ app.use(express.json());
 app.use('/assets', express.static(path.join(__dirname, '../assets')));
 app.use(express.static(path.join(__dirname, '../public')));
 
+/** External USB photo library — images never stored in repo */
+app.use('/library', (req, res) => {
+  const rel = req.path.replace(/^\//, '');
+  if (!rel) return res.status(400).json({ error: 'path required' });
+  serveLibraryFile(rel, res);
+});
+
+app.use('/universe', universeRouter);
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'pickmetalk-photo-push' });
 });
@@ -35,6 +45,7 @@ app.use('/api', relationshipRouter);
 app.use('/api', personalityRouter);
 app.use('/api/conversation', conversationRouter);
 app.use('/api/meet', meetRouter);
+app.use('/api/universe', universeRouter);
 app.use('/api/push', pushRouter);
 
 app.listen(PORT, () => {
