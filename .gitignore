@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+test-fixtures/
+data/photo-universe/cache/
+data/photo-universe/catalog.db
+data/photo-universe/catalog.db-*
+data/photo-universe/rejected/
+data/photo-universe/indexes/**/*.json
+!data/photo-universe/.gitkeep
+web/node_modules/
+web/.next/

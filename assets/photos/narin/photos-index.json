@@ -1,0 +1,114 @@
+{
+  "character": "narin",
+  "characterId": "00000000-0000-0000-0000-000000000002",
+  "updatedAt": "2026-07-08T04:53:51.308Z",
+  "totalCount": 7,
+  "photos": [
+    {
+      "id": "fc1d0b6a-f5b1-4138-9709-60bd1f06bbae",
+      "character": "narin",
+      "category": "hair",
+      "emotion": "shy",
+      "tags": [
+        "narin",
+        "hair",
+        "salon",
+        "mirror"
+      ],
+      "filename": "6ad876ce59fc0862.jpg",
+      "relativePath": "narin/hair/6ad876ce59fc0862.jpg",
+      "contentHash": "6ad876ce59fc0862",
+      "importedAt": "2026-07-08T04:53:51.270Z"
+    },
+    {
+      "id": "367506d0-9080-45aa-8276-f859ce63e1bd",
+      "character": "narin",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "narin",
+        "coffee",
+        "choice"
+      ],
+      "filename": "b172da8bd0450e04.jpg",
+      "relativePath": "narin/coffee/b172da8bd0450e04.jpg",
+      "contentHash": "b172da8bd0450e04",
+      "importedAt": "2026-07-08T04:53:51.279Z"
+    },
+    {
+      "id": "a92adb41-d568-49e8-b535-8904bf120425",
+      "character": "narin",
+      "category": "alcohol",
+      "emotion": "tired",
+      "tags": [
+        "narin",
+        "drinking",
+        "hangover"
+      ],
+      "filename": "a9ac041357ec780a.jpg",
+      "relativePath": "narin/alcohol/a9ac041357ec780a.jpg",
+      "contentHash": "a9ac041357ec780a",
+      "importedAt": "2026-07-08T04:53:51.284Z"
+    },
+    {
+      "id": "f0483167-2a35-4a52-a0a5-b411b8628f6d",
+      "character": "narin",
+      "category": "happy",
+      "emotion": "happy",
+      "tags": [
+        "narin",
+        "happy",
+        "blush"
+      ],
+      "filename": "9c811602f2ebde9a.jpg",
+      "relativePath": "narin/happy/9c811602f2ebde9a.jpg",
+      "contentHash": "9c811602f2ebde9a",
+      "importedAt": "2026-07-08T04:53:51.290Z"
+    },
+    {
+      "id": "a37aea4f-b49f-48c1-87f9-f1ea7e4f2588",
+      "character": "narin",
+      "category": "selfie",
+      "emotion": "happy",
+      "tags": [
+        "narin",
+        "mirror",
+        "selfie"
+      ],
+      "filename": "a114a04525e7e162.jpg",
+      "relativePath": "narin/selfie/a114a04525e7e162.jpg",
+      "contentHash": "a114a04525e7e162",
+      "importedAt": "2026-07-08T04:53:51.297Z"
+    },
+    {
+      "id": "07d91893-9777-407d-8f5e-40808b7ff879",
+      "character": "narin",
+      "category": "nail",
+      "emotion": "happy",
+      "tags": [
+        "narin",
+        "nail",
+        "art"
+      ],
+      "filename": "ae5d83c48cde1ba9.jpg",
+      "relativePath": "narin/nail/ae5d83c48cde1ba9.jpg",
+      "contentHash": "ae5d83c48cde1ba9",
+      "importedAt": "2026-07-08T04:53:51.303Z"
+    },
+    {
+      "id": "eeb760b1-26ed-4608-a209-03830abcb230",
+      "character": "narin",
+      "category": "weekend",
+      "emotion": "sad",
+      "tags": [
+        "narin",
+        "sad",
+        "pouty"
+      ],
+      "filename": "e4f2cbd038f82ad1.jpg",
+      "relativePath": "narin/weekend/e4f2cbd038f82ad1.jpg",
+      "contentHash": "e4f2cbd038f82ad1",
+      "importedAt": "2026-07-08T04:53:51.308Z"
+    }
+  ]
+}

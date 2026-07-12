@@ -1,0 +1,892 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── 사용자 ───────────────────────────────────────────────
+model User {
+  id                String   @id @default(uuid())
+  name              String
+  age               Int?
+  timezone          String   @default("Asia/Seoul")
+  country           String   @default("KR")
+  birthday          DateTime?
+  pushEnabled       Boolean  @default(true)
+  deviceTokens      DeviceToken[]
+  webPushSubscriptions WebPushSubscription[]
+  engagementScore   Float    @default(0.5) // 0.0 ~ 1.0
+  frequencyMultiplier Float  @default(1.0) // 0.5 ~ 1.5
+  lastActiveAt      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  characters        UserCharacter[]
+  pushSchedules     PushSchedule[]
+  pushLogs          PushLog[]
+  skipDays          SkipDay[]
+  specialDays       UserSpecialDay[]
+  analyticsSnapshots AnalyticsSnapshot[]
+
+  @@index([timezone])
+  @@index([lastActiveAt])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  Platform
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum Platform {
+  IOS
+  ANDROID
+}
+
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ─── 캐릭터 ───────────────────────────────────────────────
+model Character {
+  id           String   @id @default(uuid())
+  slug         String?  @unique
+  name         String
+  personality  String   // 성격 설명
+  speechStyle  String   // 말투 스타일 (예: "다정한", "장난스러운")
+  createdAt    DateTime @default(now())
+
+  photos       CharacterPhoto[]
+  users        UserCharacter[]
+  pushLogs     PushLog[]
+}
+
+model UserCharacter {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterId         String
+  character           Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  relationshipStartAt DateTime  @default(now())
+  day100Date          DateTime? // 100일 기념일
+  isActive            Boolean   @default(true)
+  affectionScore      Float     @default(50) // 0~100 호감도
+  relationshipLevel   Int       @default(1)  // 1~8 관계 단계 (Relationship Journey)
+  relationshipStageAt DateTime  @default(now()) // 현재 단계 도달 시각
+  createdAt           DateTime  @default(now())
+
+  sentPhotos          SentPhotoHistory[]
+  chatMessages        ChatMessage[]
+  emotionState        CharacterEmotionState?
+  shortTermMemories   ShortTermMemory[]
+  longTermMemories    LongTermMemory[]
+  dailyRoutines       CharacterDailyRoutine[]
+  dailyLifeEvents     DailyLifeEvent[]
+  notificationQueue   NotificationQueueItem[]
+  memoryTimeline      MemoryTimeline[]
+  anniversaries       Anniversary[]
+  sharedMemories      SharedMemory[]
+  memoryAlbumItems    MemoryAlbumItem[]
+  relationshipRewards RelationshipReward[]
+  stageHistory        RelationshipStageHistory[]
+  personalityDNA      PersonalityDNA[]
+  personalityHistory  PersonalityHistory[]
+  habitLearning       HabitLearning[]
+  userPreferences     UserPreference[]
+  growthEvents        GrowthEvent[]
+  adaptiveMemories    AdaptiveMemory[]
+
+  @@unique([userId, characterId])
+  @@index([userId])
+}
+
+// ─── 캐릭터 사진 (캐릭터당 ~1,000장) ─────────────────────
+model CharacterPhoto {
+  id          String        @id @default(uuid())
+  characterId String
+  character   Character     @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  url         String
+  thumbnailUrl String?
+  category    PhotoCategory
+  categorySlug String?       // hair, coffee, rain ...
+  relativePath String?       // yuna/hair/abc.jpg
+  emotion     String?        // happy, sad, sleepy ...
+  tags        String[]      // ["셀카", "침대", "아침"]
+  expression  String?       // legacy — emotion과 동기화
+  background  String?       // 침대, 카페, 거리 등
+  lighting    String?       // 자연광, 형광등, 촛불 등
+  cameraAngle String?       // 셀카, 거울, 전신 등
+  outfit      String?
+  hairstyle   String?
+  season      Season?
+  weather     Weather?
+  timeOfDay   TimeOfDay?
+  contentHash String?
+  status      PhotoStatus   @default(ACTIVE)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+
+  sentHistory SentPhotoHistory[]
+  pushLogs    PushLog[]
+
+  @@index([characterId, category])
+  @@index([characterId, categorySlug])
+  @@index([characterId, categorySlug, emotion])
+  @@index([characterId, timeOfDay])
+}
+
+enum PhotoStatus {
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  ARCHIVED
+}
+
+enum PhotoCategory {
+  SELFIE_BED
+  SELFIE_MIRROR
+  SELFIE_GENERAL
+  COFFEE_CAFE
+  WORK_OVERTIME
+  WORK_LEAVE
+  EXERCISE_GYM
+  EXERCISE_RUNNING
+  WALK
+  HAIR_SALON
+  NAIL_ART
+  DRINKING
+  FOOD_TTEOKBOKKI
+  FOOD_RAMEN
+  FOOD_BURGER
+  FOOD_BAKERY
+  FOOD_COOKING
+  GAME
+  MOVIE
+  SHOPPING
+  DRIVING
+  RAIN
+  SNOW
+  CHERRY_BLOSSOM
+  SEA
+  CAMPING
+  HOME_LOUNGE
+  READING
+  LATE_NIGHT_SNACK
+  BEFORE_MAKEUP
+  AFTER_MAKEUP
+  TIRED_FACE
+  FRIENDS
+  BRUNCH
+  WEEKEND_OUT
+  HAPPY
+  SAD
+  CRYING
+  LAUGHING
+  SLEEPY
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  AUTUMN
+  WINTER
+}
+
+enum Weather {
+  SUNNY
+  CLOUDY
+  RAINY
+  SNOWY
+}
+
+enum TimeOfDay {
+  MORNING
+  AFTERNOON
+  EVENING
+  NIGHT
+  LATE_NIGHT
+}
+
+// ─── 사진 발송 이력 (중복 방지) ───────────────────────────
+model SentPhotoHistory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  photoId         String
+  photo           CharacterPhoto @relation(fields: [photoId], references: [id])
+  sentAt          DateTime      @default(now())
+
+  @@unique([userCharacterId, photoId])
+  @@index([userCharacterId, sentAt])
+}
+
+// ─── 푸시 스케줄 ──────────────────────────────────────────
+model PushSchedule {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterId String?
+  scheduledAt DateTime
+  status      ScheduleStatus @default(PENDING)
+  pushType    PushType       @default(REGULAR)
+  photoId     String?
+  message     String?
+  timezone    String
+  createdAt   DateTime       @default(now())
+  executedAt  DateTime?
+
+  @@index([status, scheduledAt])
+  @@index([userId, scheduledAt])
+}
+
+enum ScheduleStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+  SKIPPED
+}
+
+enum PushType {
+  REGULAR
+  SPECIAL_DAY  // 생일, 기념일, 100일
+  FOLLOW_UP    // 후속 반응
+  LIVING_EVENT // Living AI 이벤트 기반
+}
+
+// ─── 푸시 발송 로그 & 분석 ────────────────────────────────
+model PushLog {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  characterId     String
+  character       Character     @relation(fields: [characterId], references: [id])
+  photoId         String?
+  photo           CharacterPhoto? @relation(fields: [photoId], references: [id])
+  message         String
+  photoCategory   PhotoCategory?
+  pushType        PushType      @default(REGULAR)
+  sentAt          DateTime      @default(now())
+
+  // 분석 필드
+  clicked         Boolean       @default(false)
+  clickedAt       DateTime?
+  photoViewed     Boolean       @default(false)
+  photoViewedAt   DateTime?
+  replied         Boolean       @default(false)
+  repliedAt       DateTime?
+  replyLatencyMs  Int?          // 답장까지 걸린 시간 (ms)
+  conversationStarted Boolean   @default(false)
+  conversationLength Int        @default(0) // 메시지 수
+  liked           Boolean       @default(false)
+  emojiUsed       Boolean       @default(false)
+  reconnectedAt   DateTime?     // 푸시 후 재접속 시간
+
+  followUps       FollowUpScenario[]
+
+  @@index([userId, sentAt])
+  @@index([characterId, photoCategory])
+  @@index([sentAt])
+}
+
+// ─── 후속 반응 시나리오 ───────────────────────────────────
+model FollowUpScenario {
+  id          String            @id @default(uuid())
+  pushLogId   String
+  pushLog     PushLog           @relation(fields: [pushLogId], references: [id], onDelete: Cascade)
+  stage       FollowUpStage
+  message     String
+  scheduledAt DateTime
+  status      FollowUpStatus    @default(PENDING)
+  sentAt      DateTime?
+  triggerCondition String?      // "no_reply", "negative_reply", "positive_reply", "late_reply"
+  createdAt   DateTime          @default(now())
+
+  @@index([status, scheduledAt])
+  @@index([pushLogId])
+}
+
+enum FollowUpStage {
+  AFTER_30_MIN
+  AFTER_2_HOURS
+  NEXT_DAY
+  LATE_REPLY_RESPONSE
+  NEGATIVE_REPLY_RESPONSE
+  POSITIVE_REPLY_RESPONSE
+}
+
+enum FollowUpStatus {
+  PENDING
+  SENT
+  CANCELLED
+  SKIPPED
+}
+
+// ─── 채팅 메시지 (답장 추적) ──────────────────────────────
+model ChatMessage {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  pushLogId       String?       // 푸시에 대한 답장인 경우
+  sender          MessageSender
+  content         String
+  hasEmoji        Boolean       @default(false)
+  isLike          Boolean       @default(false)
+  sentAt          DateTime      @default(now())
+
+  @@index([userCharacterId, sentAt])
+  @@index([pushLogId])
+}
+
+enum MessageSender {
+  USER
+  CHARACTER
+}
+
+// ─── 일부러 안 보내는 날 ──────────────────────────────────
+model SkipDay {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skipDate  DateTime // 해당 날짜 (timezone 기준)
+  reason    String   @default("intentional_absence")
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skipDate])
+  @@index([userId, skipDate])
+}
+
+// ─── 특별한 날 (생일, 기념일) ─────────────────────────────
+model UserSpecialDay {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      SpecialDayType
+  date      DateTime        // MM-DD 또는 전체 날짜
+  label     String?         // "우리 만난 날", "첫 키스" 등
+  createdAt DateTime        @default(now())
+
+  @@index([userId])
+  @@index([date])
+}
+
+enum SpecialDayType {
+  BIRTHDAY
+  ANNIVERSARY
+  DAY_100
+  CUSTOM
+}
+
+// ─── 일일 발송 쿼터 ───────────────────────────────────────
+model DailyPushQuota {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime // timezone 기준 날짜
+  sentCount Int      @default(0)
+  maxCount  Int      @default(2)
+  bonusCount Int     @default(0) // 특별한 날 추가 1회
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// ─── 분석 스냅샷 (7일/30일 유지율 등) ─────────────────────
+model AnalyticsSnapshot {
+  id                    String   @id @default(uuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart           DateTime
+  periodEnd             DateTime
+  periodDays            Int      // 7 or 30
+
+  totalPushesSent       Int      @default(0)
+  totalClicks           Int      @default(0)
+  totalReplies          Int      @default(0)
+  ctr                   Float    @default(0) // 클릭률
+  replyRate             Float    @default(0) // 답장률
+  avgReplyLatencyMs     Int?
+  avgConversationLength Float    @default(0)
+  retentionRate         Float?   // 유지율
+  skipDayReconnectRate  Float?   // 미발송일 이후 재접속률
+  optimalPushHour       Int?     // 최적 발송 시간
+  optimalPushDayOfWeek  Int?     // 최적 요일 (0=일)
+  topPhotoCategory      PhotoCategory?
+  createdAt             DateTime @default(now())
+
+  @@index([userId, periodDays])
+}
+
+// ─── 발송된 메시지 중복 방지 ──────────────────────────────
+model SentMessageHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  sentAt    DateTime @default(now())
+
+  @@index([userId, sentAt])
+}
+
+// ─── 사용자별 최적 발송 시간 학습 ─────────────────────────
+model UserOptimalTime {
+  id          String @id @default(uuid())
+  userId      String @unique
+  hourWeights Json   // { "8": 0.3, "9": 0.5, "14": 0.8, ... }
+  dayWeights  Json   // { "0": 0.4, "1": 0.6, ... }
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Living AI: 감정 상태 ─────────────────────────────────
+model CharacterEmotionState {
+  id              String        @id @default(uuid())
+  userCharacterId String        @unique
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  emotion         LivingEmotion @default(NEUTRAL)
+  intensity       Float         @default(0.6) // 0~1
+  triggers        String[]      @default([])
+  updatedAt       DateTime      @updatedAt
+}
+
+enum LivingEmotion {
+  HAPPY
+  SLEEPY
+  SAD
+  EXCITED
+  ANGRY
+  EMBARRASSED
+  LOVE
+  BORED
+  HUNGRY
+  TIRED
+  NEUTRAL
+}
+
+// ─── Living AI: 단기 기억 (24시간) ──────────────────────────
+model ShortTermMemory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  topic           String        // 감기, 시험, 야근
+  content         String
+  emotion         LivingEmotion?
+  expiresAt       DateTime
+  reminded        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@index([userCharacterId, expiresAt])
+  @@index([userCharacterId, reminded])
+}
+
+// ─── Living AI: 장기 기억 ─────────────────────────────────
+model LongTermMemory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  category        MemoryCategory
+  key             String
+  value           String
+  confidence      Float         @default(0.8)
+  source          String?       // chat, inferred, user_profile
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userCharacterId, category, key])
+  @@index([userCharacterId, category])
+}
+
+enum MemoryCategory {
+  PREFERENCE
+  FOOD
+  DISLIKE
+  JOB
+  LIFESTYLE
+  BIRTHDAY
+  HOBBY
+  CUSTOM
+}
+
+// ─── Living AI: 일일 루틴 ─────────────────────────────────
+model CharacterDailyRoutine {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  date            DateTime      // timezone 기준 날짜 (00:00)
+  timezone        String
+  activities      Json          // RoutineActivity[]
+  daySeed         String
+  createdAt       DateTime      @default(now())
+
+  @@unique([userCharacterId, date])
+  @@index([userCharacterId, date])
+}
+
+// ─── Living AI: 일일 이벤트 ───────────────────────────────
+model DailyLifeEvent {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  characterId     String
+  date            DateTime
+  eventType       LifeEventType
+  categorySlug    String
+  emotion         LivingEmotion
+  scheduledAt     DateTime
+  message         String?
+  pushed          Boolean       @default(false)
+  pushLogId       String?
+  probability     Float
+  createdAt       DateTime      @default(now())
+
+  @@index([userCharacterId, date])
+  @@index([scheduledAt, pushed])
+}
+
+enum LifeEventType {
+  HAIR
+  NAIL
+  SHOPPING
+  CAFE
+  EXERCISE
+  MOVIE
+  DRIVE
+  WALK
+  LATE_NIGHT_SNACK
+  DRINKING
+  RAIN
+  SICK
+  BIRTHDAY
+  TRAVEL
+  NEW_OUTFIT
+  SELFIE
+  WORK
+  LUNCH
+  COMMUTE
+  SLEEP
+}
+
+// ─── Living AI: 알림 큐 ───────────────────────────────────
+model NotificationQueueItem {
+  id              String         @id @default(uuid())
+  userId          String
+  userCharacterId String
+  userCharacter   UserCharacter  @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  characterId     String
+  type            NotificationType @default(PHOTO_PUSH)
+  scheduledAt     DateTime
+  status          ScheduleStatus @default(PENDING)
+  priority        Int            @default(0)
+  payload         Json           // categorySlug, emotion, eventId, message hints
+  pushScheduleId  String?
+  createdAt       DateTime       @default(now())
+  executedAt      DateTime?
+
+  @@index([status, scheduledAt])
+  @@index([userId, scheduledAt])
+}
+
+enum NotificationType {
+  PHOTO_PUSH
+  TEXT_NUDGE
+  MEMORY_REMINDER
+  EVENT_PHOTO
+  ANNIVERSARY
+  MEMORY_REPLAY
+}
+
+// ─── Relationship Journey: 타임라인 ───────────────────────
+model MemoryTimeline {
+  id                 String            @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter     @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  eventType          TimelineEventType
+  title              String
+  description        String?
+  emoji              String?
+  photoId            String?
+  photoUrl           String?
+  pushLogId          String?
+  albumCategory      AlbumCategory?
+  emotionalIntensity Float             @default(0.5)
+  occurredAt         DateTime
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+
+  albumItems         MemoryAlbumItem[]
+
+  @@index([userCharacterId, occurredAt])
+  @@index([userCharacterId, eventType])
+}
+
+enum TimelineEventType {
+  FIRST_MEET
+  FIRST_PHOTO
+  FIRST_SELFIE
+  FIRST_GIFT
+  FIRST_CALL
+  FIRST_LAUGH
+  FIRST_JEALOUSY
+  FIRST_FIGHT
+  RECONCILE
+  BIRTHDAY
+  ANNIVERSARY
+  DAY_100
+  DAY_200
+  FIRST_TRIP
+  FIRST_RAINY_DAY
+  FIRST_CHRISTMAS
+  FIRST_NEW_YEAR
+  PHOTO_SENT
+  GIFT_SENT
+  CALL
+  SPECIAL_CHAT
+  EVENT
+  STAGE_UP
+  MEMORY_REPLAY
+  CUSTOM
+}
+
+// ─── Relationship Journey: 기념일 ───────────────────────────
+model Anniversary {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  dayCount        Int
+  label           String
+  scheduledDate   DateTime
+  celebratedAt    DateTime?
+  isCelebrated    Boolean       @default(false)
+  timelineId      String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([userCharacterId, dayCount])
+  @@index([userCharacterId, scheduledDate])
+}
+
+// ─── Relationship Journey: 공유 기억 (감정·회상) ─────────────
+model SharedMemory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  title              String
+  content            String
+  recallPhrase       String
+  emotionalIntensity Float         @default(0.7)
+  occurredAt         DateTime
+  lastRecalledAt     DateTime?
+  recallCount        Int           @default(0)
+  tags               String[]      @default([])
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, occurredAt])
+  @@index([userCharacterId, emotionalIntensity])
+}
+
+// ─── Relationship Journey: 추억 앨범 ────────────────────────
+model MemoryAlbumItem {
+  id              String         @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter  @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  albumCategory   AlbumCategory
+  photoId         String?
+  photoUrl        String
+  title           String?
+  capturedAt      DateTime
+  timelineId      String?
+  timeline        MemoryTimeline? @relation(fields: [timelineId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([userCharacterId, albumCategory])
+  @@index([userCharacterId, capturedAt])
+}
+
+enum AlbumCategory {
+  SELFIE
+  FOOD
+  CAFE
+  ANNIVERSARY
+  GIFT
+  SPRING
+  RAIN
+  CHRISTMAS
+  NEW_YEAR
+  COUPLE
+  TRAVEL
+  OTHER
+}
+
+// ─── Relationship Journey: 단계별 보상 ─────────────────────
+model RelationshipReward {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  stageLevel      Int
+  rewardKey       String
+  rewardLabel     String
+  unlockedAt      DateTime      @default(now())
+
+  @@unique([userCharacterId, rewardKey])
+  @@index([userCharacterId, stageLevel])
+}
+
+// ─── Relationship Journey: 단계 이력 ────────────────────────
+model RelationshipStageHistory {
+  id              String        @id @default(uuid())
+  userCharacterId String
+  userCharacter   UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  stageLevel      Int
+  stageName       String
+  reachedAt       DateTime      @default(now())
+
+  @@index([userCharacterId, reachedAt])
+}
+
+// ─── Relationship Stage 정의 (시드용 참조) ──────────────────
+model RelationshipStage {
+  id          Int      @id
+  name        String
+  nameKo      String
+  description String
+  minAffection Float
+  maxAffection Float
+  speechStyle String
+  rewards     String[] @default([])
+}
+
+
+// ─── Adaptive Personality: DNA ─────────────────────────────
+model PersonalityDNA {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait
+  coreValue          Int           // 캐릭터 본래 성격 (변하지 않음)
+  adaptiveValue      Int           // 적응 변화 포함 값 (0~100)
+  confidence         Float         @default(0.7)
+  lastUpdatedReason  String?
+  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime      @default(now())
+
+  @@unique([userCharacterId, traitKey])
+  @@index([userCharacterId, adaptiveValue])
+}
+
+enum PersonalityTrait {
+  AEGYO
+  PLAYFULNESS
+  TALKATIVENESS
+  JEALOUSY
+  CURIOSITY
+  CARE
+  SENSITIVITY
+  LOGIC
+  CONFIDENCE
+  ACTIVITY
+  INDEPENDENCE
+  LEADERSHIP
+  SHYNESS
+  OPTIMISM
+  EMPATHY
+  EXPRESSIVENESS
+  ROMANTIC
+  HUMOR
+  ADVENTURE
+  ATTACHMENT
+}
+
+// ─── Adaptive Personality: 변화 이력 ───────────────────────
+model PersonalityHistory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait
+  previousValue      Int
+  delta              Int
+  newValue           Int
+  reason             String
+  sourceType         String        // compliment, late_reply, habit, event ...
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, createdAt])
+  @@index([userCharacterId, traitKey])
+}
+
+// ─── Adaptive Personality: 습관 학습 ───────────────────────
+model HabitLearning {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  habitKey           String        // login_22h, coffee_topic, late_night_snack
+  value              String?
+  score              Float         @default(0)
+  occurrences        Int           @default(0)
+  lastSeenAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([userCharacterId, habitKey])
+  @@index([userCharacterId, score])
+}
+
+// ─── Adaptive Personality: 사용자 선호 ──────────────────────
+model UserPreference {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  preferenceKey      String        // selfie, cafe, humor, workout
+  likesScore         Float         @default(0)
+  dislikesScore      Float         @default(0)
+  confidence         Float         @default(0.5)
+  evidenceCount      Int           @default(0)
+  updatedAt          DateTime      @updatedAt
+  createdAt          DateTime      @default(now())
+
+  @@unique([userCharacterId, preferenceKey])
+  @@index([userCharacterId, likesScore])
+}
+
+// ─── Adaptive Personality: 성장 이벤트 ──────────────────────
+model GrowthEvent {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  title              String
+  description        String
+  traitKey           PersonalityTrait?
+  delta              Int?
+  emotionalIntensity Float         @default(0.5)
+  happenedAt         DateTime      @default(now())
+  metadata           Json?
+
+  @@index([userCharacterId, happenedAt])
+}
+
+// ─── Adaptive Personality: 변화 이유 기억 ───────────────────
+model AdaptiveMemory {
+  id                 String        @id @default(uuid())
+  userCharacterId    String
+  userCharacter      UserCharacter @relation(fields: [userCharacterId], references: [id], onDelete: Cascade)
+  traitKey           PersonalityTrait?
+  memoryType         String        // dna_reflection, habit, preference
+  content            String
+  trigger            String?
+  createdAt          DateTime      @default(now())
+
+  @@index([userCharacterId, createdAt])
+}

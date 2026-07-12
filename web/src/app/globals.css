@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #faf6f1;
+  --cream-deep: #f3ebe3;
+  --blush: #f8e8e4;
+  --warm-white: #fffdfb;
+  --ink: #2c2420;
+  --ink-soft: #6b5f58;
+  --glass: rgba(255, 253, 251, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --shadow-warm: 0 24px 60px -20px rgba(180, 140, 120, 0.35);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--ink);
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #fff5ee 0%, var(--cream) 45%, #f7efe8 100%);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer utilities {
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid var(--glass-border);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: translateX(-30%) skewX(-12deg);
+  }
+  50% {
+    opacity: 0.35;
+    transform: translateX(30%) skewX(-12deg);
+  }
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 60%
+  );
+  animation: shimmer 6s ease-in-out infinite;
+  pointer-events: none;
+}

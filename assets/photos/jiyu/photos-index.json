@@ -1,0 +1,113 @@
+{
+  "character": "jiyu",
+  "characterId": "00000000-0000-0000-0000-000000000005",
+  "updatedAt": "2026-07-08T04:53:51.412Z",
+  "totalCount": 7,
+  "photos": [
+    {
+      "id": "1f5b2464-0bba-4c82-af2d-b612b9e4a0cb",
+      "character": "jiyu",
+      "category": "tteokbokki",
+      "emotion": "excited",
+      "tags": [
+        "jiyu",
+        "food",
+        "tteokbokki"
+      ],
+      "filename": "393a407e27fe9d42.jpg",
+      "relativePath": "jiyu/tteokbokki/393a407e27fe9d42.jpg",
+      "contentHash": "393a407e27fe9d42",
+      "importedAt": "2026-07-08T04:53:51.386Z"
+    },
+    {
+      "id": "777aea35-0562-4bbf-8d43-34968befc28d",
+      "character": "jiyu",
+      "category": "coffee",
+      "emotion": "happy",
+      "tags": [
+        "jiyu",
+        "aesthetic",
+        "cafe"
+      ],
+      "filename": "cf066809ed2fd1b6.jpg",
+      "relativePath": "jiyu/coffee/cf066809ed2fd1b6.jpg",
+      "contentHash": "cf066809ed2fd1b6",
+      "importedAt": "2026-07-08T04:53:51.390Z"
+    },
+    {
+      "id": "d20a9410-52fc-4ab6-a2d0-6a5c2a33d029",
+      "character": "jiyu",
+      "category": "alcohol",
+      "emotion": "tired",
+      "tags": [
+        "jiyu",
+        "drinking",
+        "hangover"
+      ],
+      "filename": "7a50259990e95a8d.jpg",
+      "relativePath": "jiyu/alcohol/7a50259990e95a8d.jpg",
+      "contentHash": "7a50259990e95a8d",
+      "importedAt": "2026-07-08T04:53:51.395Z"
+    },
+    {
+      "id": "37830575-6777-4227-b84f-9a3f4684e64c",
+      "character": "jiyu",
+      "category": "weekend",
+      "emotion": "excited",
+      "tags": [
+        "jiyu",
+        "escape",
+        "room"
+      ],
+      "filename": "8557d5c4ee03d29c.jpg",
+      "relativePath": "jiyu/weekend/8557d5c4ee03d29c.jpg",
+      "contentHash": "8557d5c4ee03d29c",
+      "importedAt": "2026-07-08T04:53:51.400Z"
+    },
+    {
+      "id": "e74591a1-087c-4b49-b5d1-aa2d9bf45316",
+      "character": "jiyu",
+      "category": "selfie",
+      "emotion": "happy",
+      "tags": [
+        "jiyu",
+        "gaming",
+        "selfie"
+      ],
+      "filename": "da437b271e6c6807.jpg",
+      "relativePath": "jiyu/selfie/da437b271e6c6807.jpg",
+      "contentHash": "da437b271e6c6807",
+      "importedAt": "2026-07-08T04:53:51.405Z"
+    },
+    {
+      "id": "d63275b6-ac48-4211-9b27-5debfacc50e7",
+      "character": "jiyu",
+      "category": "tteokbokki",
+      "emotion": "excited",
+      "tags": [
+        "jiyu",
+        "tteokbokki"
+      ],
+      "filename": "6826f68da93917bb.jpg",
+      "relativePath": "jiyu/tteokbokki/6826f68da93917bb.jpg",
+      "contentHash": "6826f68da93917bb",
+      "importedAt": "2026-07-08T04:53:51.408Z"
+    },
+    {
+      "id": "5838427d-d701-4548-b960-f0cb46db1259",
+      "character": "jiyu",
+      "category": "morning",
+      "emotion": "sleepy",
+      "tags": [
+        "jiyu",
+        "selfie",
+        "bed",
+        "morning"
+      ],
+      "filename": "67486135aa6b319a.jpg",
+      "relativePath": "jiyu/morning/67486135aa6b319a.jpg",
+      "contentHash": "67486135aa6b319a",
+      "importedAt": "2026-07-08T04:53:51.411Z"
+    }
+  ]
+}
