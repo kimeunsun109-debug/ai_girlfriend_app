@@ -12,6 +12,7 @@ import { personalityRouter } from './routes/personality.routes.js';
 import { conversationRouter } from './routes/conversation.routes.js';
 import { meetRouter } from './routes/meet.routes.js';
 import { universeRouter, serveLibraryFile } from './routes/universe.routes.js';
+import { productionRouter } from './routes/production.routes.js';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use('/api', personalityRouter);
 app.use('/api/conversation', conversationRouter);
 app.use('/api/meet', meetRouter);
 app.use('/api/universe', universeRouter);
+app.use('/api/production', productionRouter);
 app.use('/api/push', pushRouter);
 
 app.listen(PORT, () => {

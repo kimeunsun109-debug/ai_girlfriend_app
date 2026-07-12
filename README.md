@@ -232,6 +232,17 @@ npm run universe:watch
 npm run universe:prompt -- yuna cafe shy
 ```
 
+### Midjourney Production Pipeline
+
+운영용 MJ → USB 자동 등록. 상세: **[docs/MIDJOURNEY_PRODUCTION.md](docs/MIDJOURNEY_PRODUCTION.md)**
+
+```bash
+npm run mj:init
+npm run mj:queue -- --count=20
+npm run mj:pipeline
+# http://localhost:3000/production.html
+```
+
 ## Natural Conversation (사람처럼 대화)
 
 목표는 **"AI와 대화"가 아니라 "사람과 대화"** 입니다. 상세: **[docs/NATURAL_CONVERSATION.md](docs/NATURAL_CONVERSATION.md)**
