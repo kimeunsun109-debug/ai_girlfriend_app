@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PickMeTalk MJ Production</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 1.5rem; max-width: 720px; margin-inline: auto; }
+    h1 { font-size: 1.25rem; color: #e8b4a0; }
+    .card { background: #16213e; border-radius: 12px; padding: 1rem; margin: 1rem 0; }
+    .bar { height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
+    .fill { height: 100%; background: linear-gradient(90deg, #e8b4a0, #c9a8e0); transition: width 0.3s; }
+    .row { display: flex; justify-content: space-between; font-size: 0.9rem; margin: 0.75rem 0; }
+    pre { background: #0f0f1a; padding: 0.75rem; border-radius: 8px; overflow-x: auto; font-size: 0.75rem; white-space: pre-wrap; }
+    button { background: #e8b4a0; color: #1a1a2e; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 0.5rem; }
+    .muted { color: #888; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Midjourney Production</h1>
+  <p class="muted" id="meta">Loading…</p>
+  <div id="chars"></div>
+  <div class="card" id="next"></div>
+  <button onclick="refresh()">Refresh</button>
+  <button onclick="fetch('/api/production/queue/next',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(refresh)">Next prompt</button>
+  <script>
+    async function refresh() {
+      const r = await fetch('/api/production/dashboard');
+      const d = await r.json();
+      document.getElementById('meta').textContent = d.runId
+        ? `Run ${d.runId.slice(0,8)}… · ${d.completedJobs}/${d.totalJobs} · ${d.runStatus} · Review: ${d.pendingReviews}`
+        : 'No active run — POST /api/production/queue';
+      const el = document.getElementById('chars');
+      el.innerHTML = (d.progress || []).map(p => {
+        const pct = p.target ? Math.min(100, Math.round(p.completed / p.target * 100)) : 0;
+        return `<div class="card"><div class="row"><span>${p.character}</span><span>${p.completed} / ${p.target}</span></div>
+          <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+          <span class="muted">${p.awaitingImport ? '⏳ import' : ''}${p.review ? ' ⚠️ review' : ''}</span></div>`;
+      }).join('');
+      const n = document.getElementById('next');
+      if (d.nextJob) {
+        n.innerHTML = `<strong>Next: ${d.nextJob.character} → ${d.nextJob.folder}</strong>
+          <p class="muted">Save: ${d.nextJob.targetFolder}</p>
+          <pre>${d.nextJob.midjourneyCommand || d.nextJob.promptPreview || ''}</pre>`;
+      } else n.innerHTML = '<span class="muted">Queue complete</span>';
+    }
+    refresh();
+    setInterval(refresh, 15000);
+  </script>
+</body>
+</html>

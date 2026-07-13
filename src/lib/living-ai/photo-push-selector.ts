@@ -1,4 +1,5 @@
 import { photoCatalogRepository } from '../photo-catalog/photo-repository.js';
+import { buildPhotoUrl } from '../photo-catalog/index-manager.js';
 import { emotionStateManager } from './emotion-state-manager.js';
 import { dailyRoutineGenerator } from './daily-routine-generator.js';
 import type { LivingPushContext, RoutineActivity } from './types.js';
@@ -38,8 +39,8 @@ export class PhotoPushSelector {
 
     return {
       photoId: meta.id,
-      photoUrl: `${baseUrl}/assets/photos/${meta.relativePath}`,
-      thumbnailUrl: `${baseUrl}/assets/photos/${meta.relativePath}`,
+      photoUrl: buildPhotoUrl(meta.relativePath, baseUrl),
+      thumbnailUrl: buildPhotoUrl(meta.relativePath, baseUrl),
       categorySlug: meta.category,
       emotion: meta.emotion,
       relativePath: meta.relativePath,

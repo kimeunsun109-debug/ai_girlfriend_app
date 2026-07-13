@@ -1,14 +1,16 @@
 /**
  * PickMeTalk Photo Universe — external library + catalog configuration
  * Images live on USB (PHOTO_LIBRARY_ROOT). Project stores metadata, indexes, cache only.
+ *
+ * Path resolution: see runtime-environment.config.ts
+ * - Production (Windows): D:\PickMeTalk_PhotoLibrary
+ * - Test (Cloud/Linux):   test-fixtures/photo-library
  */
 import { join } from 'path';
+import { resolvePhotoLibraryRoot } from './runtime-environment.config.js';
 
-/** USB / external photo library root (Windows default) */
-export const PHOTO_LIBRARY_ROOT =
-  process.env.PHOTO_LIBRARY_ROOT ??
-  process.env.PICKMETALK_PHOTO_LIBRARY ??
-  'D:/PickMeTalk_PhotoLibrary';
+/** USB / external photo library root */
+export const PHOTO_LIBRARY_ROOT = resolvePhotoLibraryRoot();
 
 /** Project-side universe data (indexes, SQLite, thumbnails) */
 export const PHOTO_UNIVERSE_DATA_ROOT =
