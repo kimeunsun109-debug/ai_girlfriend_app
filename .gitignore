@@ -18,6 +18,7 @@ data/photo-universe/rejected/
 data/photo-universe/import-processed/
 data/photo-universe/production-stats.json
 data/photo-universe/production-events.jsonl
+data/photo-universe/characters-manifest/
 !data/photo-universe/.gitkeep
 web/node_modules/
 web/.next/

@@ -28,6 +28,21 @@ npm run mj:production -- --once    # 1회 tick 후 종료
 
 테스트 모드(`mj:yuna-test`, 20장)는 그대로 유지됩니다.
 
+### 5캐릭터 Manifest 생성
+
+```bash
+# 5캐릭터 × 20장 MJ 명령 manifest (Discord 복사용)
+npm run mj:characters-manifest
+
+# 캐릭터당 150장 (production phase)
+npm run mj:characters-manifest -- --count=150
+
+# 특정 캐릭터만
+npm run mj:characters-manifest -- --character=narin --count=20
+```
+
+산출물: `data/photo-universe/characters-manifest/{slug}/`
+
 ## Quick Start (Windows)
 
 ```powershell
@@ -97,6 +112,7 @@ MJ_CONTINUE_ON_ERROR=true      # 오류 시 중단하지 않음
 | `mj:pipeline` | Queue + import watch + library watch |
 | `mj:dashboard` | 콘솔 진행률 |
 | `mj:yuna-test` | 유나 20장 테스트 (test mode) |
+| `mj:characters-manifest` | **5캐릭터 MJ manifest** (Discord 명령 MD + JSON) |
 
 ## Metadata Sidecar
 

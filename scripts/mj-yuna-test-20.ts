@@ -7,7 +7,8 @@
 import 'dotenv/config';
 import { existsSync, mkdirSync, copyFileSync, writeFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { YUNA_FACE_IDENTITY, YUNA_MJ_SUFFIX } from '../src/config/yuna-face-reference.config.js';
+import { YUNA_FACE_IDENTITY } from '../src/config/yuna-face-reference.config.js';
+import { buildCharacterMjCommand } from '../src/config/character-face-reference.config.js';
 import {
   bootstrapPhotoLibrary,
   productionQueue,
@@ -42,13 +43,7 @@ function compactSceneFromPrompt(fullPrompt: string): string {
 
 function buildMjCommand(prompt: string, negativePrompt: string): string {
   const scene = compactSceneFromPrompt(prompt);
-  const fullPrompt = [
-    YUNA_FACE_IDENTITY.identityPrompt,
-    scene,
-    'natural smartphone selfie, photorealistic Korean woman Yuna, same face as reference',
-    'Shot on iPhone, casual daily life, natural lighting, no AI beauty filter',
-  ].join('. ');
-  return `/imagine prompt: ${fullPrompt} --no ${YUNA_FACE_IDENTITY.identityNegative}, ${negativePrompt} ${YUNA_MJ_SUFFIX}`;
+  return buildCharacterMjCommand('yuna', scene, negativePrompt);
 }
 
 async function setupReferences(): Promise<string[]> {

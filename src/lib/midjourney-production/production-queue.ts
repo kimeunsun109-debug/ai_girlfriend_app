@@ -9,8 +9,7 @@ import {
   folderForPromptCategory,
 } from '../../config/midjourney-production.config.js';
 import { PHOTO_LIBRARY_ROOT } from '../../config/photo-universe.config.js';
-import { MIDJOURNEY_IDENTITY_SUFFIX } from '../../config/photo-universe.config.js';
-import { getCharacterSpecBySlug } from '../../data/character-specs.js';
+import { buildCharacterMjCommand } from '../../config/character-face-reference.config.js';
 import { getProductionDb, type ProductionQueueJob, type ProductionRun } from './production-db.js';
 import { buildPromptId, promptSelector } from './prompt-selector.js';
 import { logProduction } from './production-logger.js';
@@ -20,12 +19,15 @@ function buildMidjourneyCommand(
   prompt: string,
   negativePrompt: string
 ): string {
-  const spec = getCharacterSpecBySlug(character);
-  const identityNote = spec
-    ? `Same person ${spec.name}: ${spec.identity.faceShape}, ${spec.identity.baseHairstyle}.`
-    : '';
-  const fullPrompt = `${prompt}. ${identityNote}`;
-  return `/imagine prompt: ${fullPrompt} --no ${negativePrompt} ${MIDJOURNEY_IDENTITY_SUFFIX}`;
+  const sceneMatch = prompt.match(/## Scene[^\n]*\n([\s\S]*?)(?=\n## |$)/);
+  const scene = sceneMatch?.[1]
+    ? sceneMatch[1]
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join(', ')
+    : prompt.slice(0, 300);
+  return buildCharacterMjCommand(character, scene, negativePrompt);
 }
 
 export class ProductionQueue {

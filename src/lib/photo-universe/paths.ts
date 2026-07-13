@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from 'fs';
-import { join, normalize, resolve } from 'path';
+import { join, normalize, relative, resolve } from 'path';
 import {
   PHOTO_LIBRARY_ROOT,
   PHOTO_UNIVERSE_DATA_ROOT,
@@ -28,7 +28,22 @@ export function resolveLibraryPath(relativePath: string): string | null {
 
 export function libraryRelativePath(absolutePath: string): string {
   const libRoot = resolve(PHOTO_LIBRARY_ROOT);
-  return absolutePath.slice(libRoot.length + 1).replace(/\\/g, '/');
+  const resolved = resolve(absolutePath);
+  if (resolved === libRoot) return '';
+  if (resolved.startsWith(libRoot + '/')) {
+    return resolved.slice(libRoot.length + 1).replace(/\\/g, '/');
+  }
+  // Fallback when absolutePath was built with raw D:/ root before normalization
+  const rel = relative(libRoot, resolved);
+  if (rel && !rel.startsWith('..')) {
+    return rel.replace(/\\/g, '/');
+  }
+  const normalized = absolutePath.replace(/\\/g, '/');
+  const rootNorm = PHOTO_LIBRARY_ROOT.replace(/\\/g, '/');
+  if (normalized.startsWith(rootNorm + '/')) {
+    return normalized.slice(rootNorm.length + 1);
+  }
+  return normalized.replace(/\\/g, '/');
 }
 
 export function buildLibraryUrl(relativePath: string, baseUrl?: string): string {

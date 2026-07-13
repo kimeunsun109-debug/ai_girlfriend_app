@@ -300,6 +300,11 @@ export class ProductionDb {
     reviewCount: number;
     rejectedCount: number;
   }> {
+    const table = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='photos'")
+      .get() as { name: string } | undefined;
+    if (!table) return [];
+
     const rows = this.db
       .prepare(
         `SELECT character,
