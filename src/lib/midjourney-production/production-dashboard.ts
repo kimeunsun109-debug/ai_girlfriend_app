@@ -77,9 +77,12 @@ export class ProductionDashboard {
       const barLen = 10;
       const filled = Math.round((pct / 100) * barLen);
       const bar = '█'.repeat(filled) + '░'.repeat(barLen - filled);
+      const regen = p.regenerate > 0 ? ` ↻${p.regenerate}` : '';
       const extra =
         p.awaitingImport > 0 ? ` ⏳${p.awaitingImport}` : p.review > 0 ? ` ⚠️${p.review}` : '';
-      lines.push(`${p.character.padEnd(8)} ${bar}  ${p.completed} / ${p.target}${extra}`);
+      lines.push(
+        `${p.character.padEnd(8)} ${bar}  ${p.completed} / ${p.target}${extra}${regen}`
+      );
     }
 
     lines.push('');

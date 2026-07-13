@@ -5,6 +5,7 @@ import { UNIVERSE_WATCH_DEBOUNCE_MS } from '../../config/photo-universe.config.j
 import { SUPPORTED_EXTENSIONS } from '../photo-catalog/types.js';
 import { bootstrapPhotoLibrary } from './library-bootstrap.js';
 import { ingestPipeline } from './ingest-pipeline.js';
+import { productionQueue } from './production-queue.js';
 
 let importWatcher: FSWatcher | null = null;
 const pending = new Map<string, NodeJS.Timeout>();
@@ -40,6 +41,11 @@ export function startImportWatcher(): FSWatcher {
           }
         } catch (err) {
           console.error('[mj-import] error:', filePath, err);
+          const run = productionQueue.getActiveRun();
+          if (run) {
+            productionQueue.recoverStuckJobs(run.id);
+            productionQueue.activateNextJob(run.id);
+          }
         }
       }, UNIVERSE_WATCH_DEBOUNCE_MS)
     );

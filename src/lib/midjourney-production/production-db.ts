@@ -89,7 +89,37 @@ CREATE TABLE IF NOT EXISTS review_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_review_pending ON review_queue(status, character);
+
+CREATE TABLE IF NOT EXISTS production_event_log (
+  id TEXT PRIMARY KEY,
+  level TEXT NOT NULL,
+  event TEXT NOT NULL,
+  character TEXT,
+  job_id TEXT,
+  message TEXT NOT NULL,
+  meta TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prod_events_ts ON production_event_log(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS dynamic_prompt_registry (
+  character TEXT NOT NULL,
+  dynamic_index INTEGER NOT NULL,
+  prompt_hash TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  negative_prompt TEXT,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (character, dynamic_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dynamic_hash ON dynamic_prompt_registry(character, prompt_hash);
 `;
+
+const JOB_COLUMN_MIGRATIONS = [
+  `ALTER TABLE production_queue_jobs ADD COLUMN retry_count INTEGER DEFAULT 0`,
+  `ALTER TABLE production_queue_jobs ADD COLUMN prompt_source TEXT DEFAULT 'catalog'`,
+];
 
 export interface ProductionRun {
   id: string;
@@ -121,6 +151,8 @@ export interface ProductionQueueJob {
   createdAt: string;
   ingestedPhotoId?: string;
   errorMessage?: string;
+  retryCount?: number;
+  promptSource?: 'catalog' | 'generated';
 }
 
 export interface CharacterProgress {
@@ -130,6 +162,7 @@ export interface CharacterProgress {
   awaitingImport: number;
   failed: number;
   review: number;
+  regenerate: number;
 }
 
 export class ProductionDb {
@@ -142,6 +175,13 @@ export class ProductionDb {
     this.db.pragma('journal_mode = WAL');
     this.db.exec(PRODUCTION_SCHEMA);
     applyPhotoProductionMigrations(this.db);
+    for (const sql of JOB_COLUMN_MIGRATIONS) {
+      try {
+        this.db.exec(sql);
+      } catch {
+        /* column exists */
+      }
+    }
   }
 
   close(): void {
@@ -174,12 +214,122 @@ export class ProductionDb {
       .run(character, catalogCategory, catalogIndex, promptHash, jobId, new Date().toISOString());
   }
 
+  isPromptHashUsed(character: string, promptHash: string): boolean {
+    const catalog = this.db
+      .prepare('SELECT 1 FROM prompt_usage WHERE character = ? AND prompt_hash = ?')
+      .get(character, promptHash);
+    if (catalog) return true;
+    const dynamic = this.db
+      .prepare('SELECT 1 FROM dynamic_prompt_registry WHERE character = ? AND prompt_hash = ?')
+      .get(character, promptHash);
+    return Boolean(dynamic);
+  }
+
+  getNextDynamicIndex(character: string): number {
+    const row = this.db
+      .prepare(
+        'SELECT COALESCE(MAX(dynamic_index), -1) + 1 as next_idx FROM dynamic_prompt_registry WHERE character = ?'
+      )
+      .get(character) as { next_idx: number };
+    return row.next_idx;
+  }
+
+  registerDynamicPrompt(
+    character: string,
+    dynamicIndex: number,
+    promptHash: string,
+    prompt: string,
+    negativePrompt?: string
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO dynamic_prompt_registry (character, dynamic_index, prompt_hash, prompt, negative_prompt, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(character, dynamicIndex, promptHash, prompt, negativePrompt ?? null, new Date().toISOString());
+  }
+
+  insertEventLog(row: {
+    id: string;
+    level: string;
+    event: string;
+    character?: string;
+    jobId?: string;
+    message: string;
+    meta?: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO production_event_log (id, level, event, character, job_id, message, meta, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        row.id,
+        row.level,
+        row.event,
+        row.character ?? null,
+        row.jobId ?? null,
+        row.message,
+        row.meta ?? null,
+        new Date().toISOString()
+      );
+  }
+
+  getRecentEvents(limit = 50): Array<Record<string, unknown>> {
+    return this.db
+      .prepare('SELECT * FROM production_event_log ORDER BY created_at DESC LIMIT ?')
+      .all(limit) as Array<Record<string, unknown>>;
+  }
+
   getUsedPromptCount(character: string): number {
     return (
       this.db.prepare('SELECT COUNT(*) as c FROM prompt_usage WHERE character = ?').get(character) as {
         c: number;
       }
     ).c;
+  }
+
+  getPhotoQualityStatsByCharacter(): Array<{
+    character: string;
+    photoCount: number;
+    avgFaceSimilarity: number | null;
+    minFaceSimilarity: number | null;
+    maxFaceSimilarity: number | null;
+    avgQualityScore: number | null;
+    approvedCount: number;
+    reviewCount: number;
+    rejectedCount: number;
+  }> {
+    const rows = this.db
+      .prepare(
+        `SELECT character,
+          COUNT(*) as photo_count,
+          AVG(face_similarity) as avg_face,
+          MIN(face_similarity) as min_face,
+          MAX(face_similarity) as max_face,
+          AVG(quality_score) as avg_quality,
+          SUM(CASE WHEN review_status = 'APPROVED' OR face_verified = 1 THEN 1 ELSE 0 END) as approved,
+          SUM(CASE WHEN review_status = 'REVIEW' OR status = 'REVIEW' THEN 1 ELSE 0 END) as review,
+          SUM(CASE WHEN status = 'REJECTED' OR review_status = 'REJECTED' THEN 1 ELSE 0 END) as rejected
+         FROM photos GROUP BY character`
+      )
+      .all() as Array<Record<string, unknown>>;
+
+    return rows.map((r) => ({
+      character: r.character as string,
+      photoCount: r.photo_count as number,
+      avgFaceSimilarity:
+        r.avg_face != null ? Math.round((r.avg_face as number) * 1000) / 10 : null,
+      minFaceSimilarity:
+        r.min_face != null ? Math.round((r.min_face as number) * 1000) / 10 : null,
+      maxFaceSimilarity:
+        r.max_face != null ? Math.round((r.max_face as number) * 1000) / 10 : null,
+      avgQualityScore:
+        r.avg_quality != null ? Math.round((r.avg_quality as number) * 10) / 10 : null,
+      approvedCount: (r.approved as number) ?? 0,
+      reviewCount: (r.review as number) ?? 0,
+      rejectedCount: (r.rejected as number) ?? 0,
+    }));
   }
 
   createRun(
@@ -224,8 +374,9 @@ export class ProductionDb {
       .prepare(
         `INSERT INTO production_queue_jobs
          (id, run_id, character, folder_slug, catalog_category, catalog_index, prompt_id, prompt,
-          negative_prompt, sequence, status, target_folder, midjourney_command, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          negative_prompt, sequence, status, target_folder, midjourney_command, created_at,
+          retry_count, prompt_source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         job.id,
@@ -241,7 +392,9 @@ export class ProductionDb {
         job.status,
         job.targetFolder,
         job.midjourneyCommand ?? null,
-        now
+        now,
+        job.retryCount ?? 0,
+        job.promptSource ?? 'catalog'
       );
   }
 
@@ -281,11 +434,67 @@ export class ProductionDb {
     const row = this.db
       .prepare(
         `SELECT * FROM production_queue_jobs
-         WHERE run_id = ? AND status = 'pending'
-         ORDER BY sequence ASC LIMIT 1`
+         WHERE run_id = ? AND status IN ('pending', 'regenerate')
+         ORDER BY CASE status WHEN 'regenerate' THEN 0 ELSE 1 END, sequence ASC LIMIT 1`
       )
       .get(runId) as Record<string, unknown> | undefined;
     return row ? this.rowToJob(row) : null;
+  }
+
+  getRegenerateJobs(runId: string): ProductionQueueJob[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM production_queue_jobs WHERE run_id = ? AND status = 'regenerate' ORDER BY sequence ASC`
+      )
+      .all(runId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToJob(r));
+  }
+
+  resetJobForRetry(jobId: string): void {
+    this.db
+      .prepare(
+        `UPDATE production_queue_jobs
+         SET status = 'pending', error_message = NULL, retry_count = COALESCE(retry_count, 0) + 1
+         WHERE id = ?`
+      )
+      .run(jobId);
+  }
+
+  resetStuckIngestingJobs(runId: string): number {
+    const result = this.db
+      .prepare(
+        `UPDATE production_queue_jobs SET status = 'awaiting_import'
+         WHERE run_id = ? AND status = 'ingesting'`
+      )
+      .run(runId);
+    return result.changes;
+  }
+
+  countCharacterJobs(runId: string, character: string): {
+    total: number;
+    completed: number;
+    active: number;
+    failed: number;
+    regenerate: number;
+  } {
+    const rows = this.db
+      .prepare(
+        `SELECT status, COUNT(*) as c FROM production_queue_jobs
+         WHERE run_id = ? AND character = ? GROUP BY status`
+      )
+      .all(runId, character) as Array<{ status: string; c: number }>;
+    const map = Object.fromEntries(rows.map((r) => [r.status, r.c]));
+    const completed = map.completed ?? 0;
+    const failed = map.failed ?? 0;
+    const regenerate = map.regenerate ?? 0;
+    const active =
+      (map.pending ?? 0) +
+      (map.prompt_ready ?? 0) +
+      (map.awaiting_import ?? 0) +
+      (map.ingesting ?? 0) +
+      regenerate;
+    const total = rows.reduce((s, r) => s + r.c, 0);
+    return { total, completed, active, failed, regenerate };
   }
 
   getAwaitingImportJob(runId: string): ProductionQueueJob | null {
@@ -352,7 +561,15 @@ export class ProductionDb {
         this.db
           .prepare(
             `SELECT COUNT(*) as c FROM production_queue_jobs
-             WHERE run_id = ? AND character = ? AND status IN ('failed', 'regenerate')`
+             WHERE run_id = ? AND character = ? AND status = 'failed'`
+          )
+          .get(runId, character) as { c: number }
+      ).c;
+      const regenerate = (
+        this.db
+          .prepare(
+            `SELECT COUNT(*) as c FROM production_queue_jobs
+             WHERE run_id = ? AND character = ? AND status = 'regenerate'`
           )
           .get(runId, character) as { c: number }
       ).c;
@@ -373,6 +590,7 @@ export class ProductionDb {
         awaitingImport,
         failed,
         review,
+        regenerate,
       });
     }
     return result;
@@ -535,6 +753,8 @@ export class ProductionDb {
       createdAt: row.created_at as string,
       ingestedPhotoId: (row.ingested_photo_id as string) ?? undefined,
       errorMessage: (row.error_message as string) ?? undefined,
+      retryCount: (row.retry_count as number) ?? 0,
+      promptSource: ((row.prompt_source as string) ?? 'catalog') as 'catalog' | 'generated',
     };
   }
 }

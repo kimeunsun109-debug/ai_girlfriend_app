@@ -1,7 +1,8 @@
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 import { promptCatalogReader } from '../photo-catalog/prompt-catalog-reader.js';
 import type { PromptCatalogEntry } from '../photo-catalog/prompt-catalog-builder.js';
 import { getProductionDb } from './production-db.js';
+import { runtimeSceneGenerator } from './runtime-scene-generator.js';
 
 export interface SelectedPrompt {
   character: string;
@@ -9,6 +10,7 @@ export interface SelectedPrompt {
   catalogIndex: number;
   entry: PromptCatalogEntry;
   promptHash: string;
+  source?: 'catalog' | 'generated';
 }
 
 /**
@@ -51,6 +53,17 @@ export class PromptSelector {
       }
     }
     return null;
+  }
+
+  /** Catalog first; runtime scene generation when exhausted */
+  pickUnusedOrGenerate(
+    character: string,
+    preferredCategory?: string,
+    maxAttempts = 500
+  ): SelectedPrompt | null {
+    const catalog = this.pickUnused(character, preferredCategory, maxAttempts);
+    if (catalog) return { ...catalog, source: 'catalog' };
+    return runtimeSceneGenerator.generate(character, preferredCategory);
   }
 
   remainingCount(character: string): number {

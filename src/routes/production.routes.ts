@@ -6,8 +6,10 @@ import {
   getProductionDb,
   startImportWatcher,
   ingestPipeline,
+  productionOrchestrator,
+  productionStats,
 } from '../lib/midjourney-production/index.js';
-import { MJ_IMPORT_WATCH_FOLDER, MJ_PHOTOS_PER_CHARACTER } from '../config/midjourney-production.config.js';
+import { MJ_IMPORT_WATCH_FOLDER, MJ_PHOTOS_PER_CHARACTER, MJ_PRODUCTION_PHASE } from '../config/midjourney-production.config.js';
 
 export const productionRouter = Router();
 
@@ -44,6 +46,31 @@ productionRouter.post('/queue/next', (req: Request, res: Response) => {
 productionRouter.get('/review', (req: Request, res: Response) => {
   const character = req.query.character as string | undefined;
   res.json({ items: getProductionDb().getPendingReviews(character) });
+});
+
+/** Production orchestrator tick (top-up, regen, stats) */
+productionRouter.post('/orchestrator/tick', (req: Request, res: Response) => {
+  const phase = Number(req.body.phase ?? MJ_PRODUCTION_PHASE);
+  const result = productionOrchestrator.tick(phase);
+  res.json({
+    ...result,
+    recommendedPhase: productionOrchestrator.recommendNextPhase(),
+  });
+});
+
+/** Quality stats for phase gate decisions */
+productionRouter.get('/stats', (_req: Request, res: Response) => {
+  const report = productionStats.collect();
+  res.json({
+    ...report,
+    recommendedPhase: productionOrchestrator.recommendNextPhase(),
+  });
+});
+
+/** Recent production event log */
+productionRouter.get('/events', (req: Request, res: Response) => {
+  const limit = Number(req.query.limit ?? 50);
+  res.json({ events: getProductionDb().getRecentEvents(limit) });
 });
 
 /** Manual ingest from import path */

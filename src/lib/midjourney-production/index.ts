@@ -6,3 +6,7 @@ export { faceVerifier, extractFaceEmbedding, cosineSimilarity } from './face-ver
 export { ingestPipeline, IngestPipeline } from './ingest-pipeline.js';
 export { startImportWatcher, stopImportWatcher } from './import-watcher.js';
 export { productionDashboard, printProgressBar } from './production-dashboard.js';
+export { productionOrchestrator, ProductionOrchestrator } from './production-orchestrator.js';
+export { productionStats, ProductionStats } from './production-stats.js';
+export { runtimeSceneGenerator, RuntimeSceneGenerator } from './runtime-scene-generator.js';
+export { logProduction } from './production-logger.js';

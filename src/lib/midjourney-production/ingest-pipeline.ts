@@ -4,7 +4,10 @@ import { randomUUID } from 'crypto';
 import { hashFileContent } from '../photo-catalog/image-validator.js';
 import { SUPPORTED_EXTENSIONS } from '../photo-catalog/types.js';
 import { PHOTO_LIBRARY_ROOT, PHOTO_UNIVERSE_PATHS } from '../../config/photo-universe.config.js';
-import { MJ_PRODUCTION_PATHS } from '../../config/midjourney-production.config.js';
+import {
+  MJ_PRODUCTION_CONTINUE_ON_ERROR,
+  MJ_PRODUCTION_PATHS,
+} from '../../config/midjourney-production.config.js';
 import { getUniverseCatalog } from '../photo-universe/catalog-db.js';
 import { inspectImageQuality } from '../photo-universe/quality-inspector.js';
 import { generateThumbnail, writeSidecarMeta } from '../photo-universe/thumbnail-service.js';
@@ -14,11 +17,12 @@ import { getProductionDb } from './production-db.js';
 import { faceVerifier } from './face-verifier.js';
 import { inspectExtendedQuality } from './quality-extended.js';
 import { productionQueue } from './production-queue.js';
+import { logProduction } from './production-logger.js';
 import type { ProductionQueueJob } from './production-db.js';
 
 export interface IngestResult {
   ok: boolean;
-  action: 'registered' | 'review' | 'rejected' | 'duplicate' | 'skipped';
+  action: 'registered' | 'review' | 'rejected' | 'duplicate' | 'skipped' | 'error';
   photoId?: string;
   relativePath?: string;
   faceSimilarity?: number;
@@ -48,12 +52,36 @@ export class IngestPipeline {
       return { ok: false, action: 'skipped', message: 'no_active_job' };
     }
 
+    try {
+      return await this.processIngest(sourcePath, resolvedJob);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logProduction({
+        level: 'error',
+        event: 'ingest_exception',
+        character: resolvedJob.character,
+        jobId: resolvedJob.id,
+        message,
+      });
+      if (MJ_PRODUCTION_CONTINUE_ON_ERROR) {
+        productionQueue.failJob(resolvedJob.id, `ingest_error: ${message}`, true);
+        productionQueue.advanceAfterFailure(resolvedJob.runId);
+      }
+      return { ok: false, action: 'error', message };
+    }
+  }
+
+  private async processIngest(
+    sourcePath: string,
+    resolvedJob: ProductionQueueJob
+  ): Promise<IngestResult> {
     getProductionDb().updateJobStatus(resolvedJob.id, 'ingesting');
 
     const contentHash = hashFileContent(sourcePath);
     const catalog = getUniverseCatalog();
     if (catalog.findByContentHash(contentHash)) {
       productionQueue.failJob(resolvedJob.id, 'duplicate', false);
+      productionQueue.advanceAfterFailure(resolvedJob.runId);
       return { ok: false, action: 'duplicate', message: 'duplicate_content_hash' };
     }
 
@@ -69,6 +97,7 @@ export class IngestPipeline {
     if (!quality.passed && faceResult.reviewStatus === 'REJECTED') {
       await this.moveToRejected(sourcePath, resolvedJob, quality.rejectReasons.join(','));
       productionQueue.failJob(resolvedJob.id, faceResult.message, true);
+      productionQueue.advanceAfterFailure(resolvedJob.runId);
       return {
         ok: false,
         action: 'rejected',
@@ -80,12 +109,13 @@ export class IngestPipeline {
     if (!quality.passed) {
       await this.moveToRejected(sourcePath, resolvedJob, quality.rejectReasons.join(','));
       productionQueue.failJob(resolvedJob.id, 'quality_failed', true);
+      productionQueue.advanceAfterFailure(resolvedJob.runId);
       return { ok: false, action: 'rejected', message: quality.rejectReasons.join(',') };
     }
 
     const destDir = join(PHOTO_LIBRARY_ROOT, resolvedJob.character, resolvedJob.folderSlug);
     mkdirSync(destDir, { recursive: true });
-    const destFilename = `${contentHash}${ext}`;
+    const destFilename = `${contentHash}${extname(sourcePath)}`;
     const destPath = join(destDir, destFilename);
     copyFileSync(sourcePath, destPath);
 

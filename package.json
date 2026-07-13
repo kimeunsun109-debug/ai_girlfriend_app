@@ -28,6 +28,7 @@
     "mj:queue": "tsx scripts/mj-queue.ts",
     "mj:pipeline": "tsx scripts/mj-pipeline.ts",
     "mj:dashboard": "tsx scripts/mj-dashboard.ts",
+    "mj:production": "tsx scripts/mj-production.ts",
     "mj:yuna-test": "tsx scripts/mj-yuna-test-20.ts",
     "test": "vitest run",
     "test:watch": "vitest",

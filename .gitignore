@@ -15,7 +15,9 @@ data/photo-universe/cache/
 data/photo-universe/catalog.db
 data/photo-universe/catalog.db-*
 data/photo-universe/rejected/
-data/photo-universe/indexes/**/*.json
+data/photo-universe/import-processed/
+data/photo-universe/production-stats.json
+data/photo-universe/production-events.jsonl
 !data/photo-universe/.gitkeep
 web/node_modules/
 web/.next/

@@ -12,13 +12,14 @@ import {
   closeProductionDb,
 } from '../src/lib/midjourney-production/index.js';
 import { startUniverseWatcher, stopUniverseWatcher } from '../src/lib/photo-universe/index.js';
+import { MJ_PRODUCTION_PHASE } from '../src/config/midjourney-production.config.js';
 
 async function main() {
   bootstrapPhotoLibrary();
 
   if (!productionQueue.getActiveRun()) {
     const countArg = process.argv.find((a) => a.startsWith('--count='));
-    const count = countArg ? Number(countArg.split('=')[1]) : 20;
+    const count = countArg ? Number(countArg.split('=')[1]) : MJ_PRODUCTION_PHASE;
     const run = productionQueue.createRun({ photosPerCharacter: count });
     productionQueue.activateNextJob(run.id);
     console.log(`Created run ${run.id} (${run.totalJobs} jobs)\n`);

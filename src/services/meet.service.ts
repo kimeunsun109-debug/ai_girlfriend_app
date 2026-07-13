@@ -16,6 +16,7 @@ import { dailyLifeGenerator } from '../lib/living-ai/daily-life-generator.js';
 import { emotionStateManager } from '../lib/living-ai/emotion-state-manager.js';
 import { LIVING_EMOTION_TO_SLUG } from '../lib/living-ai/types.js';
 import { formatInTimeZone, getUserTodayStart, randomPick } from '../utils/push.utils.js';
+import { resolveMeetPhotos } from './meet-photo-resolver.js';
 import type { RoutineActivity } from '../lib/living-ai/types.js';
 
 const prisma = new PrismaClient();
@@ -42,6 +43,8 @@ export interface MeetCharacterCard {
   accent: string;
   status: { emoji: string; label: string };
   emotionalState: { emoji: string; label: string };
+  activityKey?: string;
+  emotionKey?: string;
   lastMessage: { text: string; relativeTime: string };
   userCharacterId: string | null;
   linked: boolean;
@@ -86,12 +89,18 @@ export class MeetService {
 
       let status = this.fallbackStatus(spec.slug, hour);
       let emotionalState = EMOTIONAL_STATE_MAP.waiting!;
+      let activityKey = getTimeOfDay(hour);
+      let emotionKey = 'waiting';
       let lastText = randomPick(FALLBACK_LAST_MESSAGES[spec.slug] ?? ['안녕']);
       let lastAt = new Date(now.getTime() - (2 + Math.floor(Math.random() * 8)) * 60 * 60 * 1000);
 
       if (uc) {
-        status = await this.resolveLiveStatus(uc.id, timezone, now);
-        emotionalState = await this.resolveEmotionalState(uc.id, hour);
+        const live = await this.resolveLiveStatus(uc.id, timezone, now);
+        status = live.status;
+        activityKey = live.activityKey;
+        const emotional = await this.resolveEmotionalState(uc.id, hour);
+        emotionalState = emotional.state;
+        emotionKey = emotional.key;
         const lastMsg = await prisma.chatMessage.findFirst({
           where: { userCharacterId: uc.id, sender: 'CHARACTER' },
           orderBy: { sentAt: 'desc' },
@@ -102,7 +111,11 @@ export class MeetService {
         }
       } else {
         emotionalState = this.fallbackEmotionalState(spec.slug, hour);
+        emotionKey = ['jiyu', 'eunha'].includes(spec.slug) ? 'happy' : 'waiting';
+        activityKey = getTimeOfDay(hour);
       }
+
+      const photos = resolveMeetPhotos(spec.slug, activityKey, emotionKey);
 
       characters.push({
         id: spec.id,
@@ -110,10 +123,8 @@ export class MeetService {
         name: spec.name,
         tagline: specTagline(spec),
         mood: theme.mood,
-        photoUrl: `/assets/photos/${theme.heroPhoto}`,
-        ambientPhotoUrl: theme.ambientPhoto
-          ? `/assets/photos/${theme.ambientPhoto}`
-          : undefined,
+        photoUrl: photos.photoUrl,
+        ambientPhotoUrl: photos.ambientPhotoUrl,
         gradient: theme.gradient,
         accent: theme.accent,
         status,
@@ -148,12 +159,14 @@ export class MeetService {
     userCharacterId: string,
     timezone: string,
     now: Date
-  ): Promise<{ emoji: string; label: string }> {
+  ): Promise<{ status: { emoji: string; label: string }; activityKey: string }> {
     const today = getUserTodayStart(timezone);
     let routine = await dailyLifeGenerator.getTodayRoutine(userCharacterId, timezone);
     if (!routine) {
       const uc = await prisma.userCharacter.findUnique({ where: { id: userCharacterId } });
-      if (!uc) return ACTIVITY_STATUS_MAP.default!;
+      if (!uc) {
+        return { status: ACTIVITY_STATUS_MAP.default!, activityKey: 'default' };
+      }
       await dailyLifeGenerator.generateForUserCharacter(
         userCharacterId,
         uc.characterId,
@@ -163,16 +176,22 @@ export class MeetService {
       routine = await dailyLifeGenerator.getTodayRoutine(userCharacterId, timezone);
     }
 
-    if (!routine?.activities?.length) return ACTIVITY_STATUS_MAP.default!;
+    if (!routine?.activities?.length) {
+      return { status: ACTIVITY_STATUS_MAP.default!, activityKey: 'default' };
+    }
 
     const current = this.findCurrentActivity(routine.activities, now);
-    if (!current) return ACTIVITY_STATUS_MAP.default!;
+    if (!current) {
+      return { status: ACTIVITY_STATUS_MAP.default!, activityKey: 'default' };
+    }
 
-    return (
+    const activityKey = current.categorySlug ?? current.activity ?? 'default';
+    const status =
       ACTIVITY_STATUS_MAP[current.activity] ??
       ACTIVITY_STATUS_MAP[current.categorySlug] ??
-      { emoji: '💭', label: current.label }
-    );
+      { emoji: '💭', label: current.label };
+
+    return { status, activityKey };
   }
 
   private findCurrentActivity(activities: RoutineActivity[], now: Date): RoutineActivity | null {
@@ -188,17 +207,20 @@ export class MeetService {
   private async resolveEmotionalState(
     userCharacterId: string,
     hour: number
-  ): Promise<{ emoji: string; label: string }> {
+  ): Promise<{ state: { emoji: string; label: string }; key: string }> {
     const state = await emotionStateManager.getState(userCharacterId);
-    if (!state) return this.fallbackEmotionalState('yuna', hour);
+    if (!state) {
+      const fb = this.fallbackEmotionalState('yuna', hour);
+      return { state: fb, key: 'neutral' };
+    }
 
     const slug = LIVING_EMOTION_TO_SLUG[state.emotion];
-    if (slug === 'love') return EMOTIONAL_STATE_MAP.love!;
-    if (slug === 'sleepy' || slug === 'tired') return EMOTIONAL_STATE_MAP.sleepy!;
-    if (slug === 'sad') return EMOTIONAL_STATE_MAP.sad!;
-    if (slug === 'happy' || slug === 'excited') return EMOTIONAL_STATE_MAP.happy!;
-    if (slug === 'bored') return EMOTIONAL_STATE_MAP.bored!;
-    if (slug === 'hungry') return EMOTIONAL_STATE_MAP.hungry!;
+    if (slug === 'love') return { state: EMOTIONAL_STATE_MAP.love!, key: 'love' };
+    if (slug === 'sleepy' || slug === 'tired') return { state: EMOTIONAL_STATE_MAP.sleepy!, key: 'sleepy' };
+    if (slug === 'sad') return { state: EMOTIONAL_STATE_MAP.sad!, key: 'sad' };
+    if (slug === 'happy' || slug === 'excited') return { state: EMOTIONAL_STATE_MAP.happy!, key: 'happy' };
+    if (slug === 'bored') return { state: EMOTIONAL_STATE_MAP.bored!, key: 'bored' };
+    if (slug === 'hungry') return { state: EMOTIONAL_STATE_MAP.hungry!, key: 'hungry' };
 
     const recentUserMsg = await prisma.chatMessage.findFirst({
       where: { userCharacterId, sender: 'USER' },
@@ -207,10 +229,12 @@ export class MeetService {
     if (recentUserMsg) {
       const hoursSince =
         (Date.now() - recentUserMsg.sentAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSince > 12) return EMOTIONAL_STATE_MAP.waiting!;
+      if (hoursSince > 12) {
+        return { state: EMOTIONAL_STATE_MAP.waiting!, key: 'waiting' };
+      }
     }
 
-    return EMOTIONAL_STATE_MAP.neutral!;
+    return { state: EMOTIONAL_STATE_MAP.neutral!, key: 'neutral' };
   }
 
   private fallbackStatus(slug: string, hour: number): { emoji: string; label: string } {

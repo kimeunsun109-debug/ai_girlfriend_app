@@ -11,7 +11,24 @@ export const MJ_PRODUCTION_PATHS = {
   faceRefs: join(PHOTO_UNIVERSE_DATA_ROOT, 'face-references'),
   importProcessed: join(PHOTO_UNIVERSE_DATA_ROOT, 'import-processed'),
   review: join(PHOTO_UNIVERSE_DATA_ROOT, 'review'),
+  eventLog: join(PHOTO_UNIVERSE_DATA_ROOT, 'production-events.jsonl'),
+  stats: join(PHOTO_UNIVERSE_DATA_ROOT, 'production-stats.json'),
 } as const;
+
+/** `production` = long-term ops; `test` = legacy 20-photo pilot defaults */
+export type MjProductionMode = 'production' | 'test';
+
+export const MJ_PRODUCTION_MODE: MjProductionMode =
+  process.env.MJ_PRODUCTION_MODE === 'test' ? 'test' : 'production';
+
+/** Scale tiers — increase MJ_PRODUCTION_PHASE when stats pass gates */
+export const PRODUCTION_SCALE_TIERS = [20, 100, 200, 500, 1000, 2000, 5000] as const;
+
+/** Target photos per character for current operational phase */
+export const MJ_PRODUCTION_PHASE = Number(
+  process.env.MJ_PRODUCTION_PHASE ??
+    (MJ_PRODUCTION_MODE === 'production' ? 150 : 20)
+);
 
 /** Midjourney download / import watch folder (Windows Downloads default) */
 export const MJ_IMPORT_WATCH_FOLDER =
@@ -20,12 +37,34 @@ export const MJ_IMPORT_WATCH_FOLDER =
   join(process.env.USERPROFILE ?? process.env.HOME ?? '', 'Downloads', 'PickMeTalk_MJ');
 
 /** Photos per character per production run — override via env or CLI */
-export const MJ_PHOTOS_PER_CHARACTER = Number(process.env.MJ_PHOTOS_PER_CHARACTER ?? 20);
+export const MJ_PHOTOS_PER_CHARACTER = Number(
+  process.env.MJ_PHOTOS_PER_CHARACTER ?? MJ_PRODUCTION_PHASE
+);
 
 /** Character processing order */
 export const MJ_CHARACTER_ORDER = Object.keys(CHARACTER_SLUG_MAP) as Array<
   keyof typeof CHARACTER_SLUG_MAP
 >;
+
+/** Continue pipeline on errors (log + next job) */
+export const MJ_PRODUCTION_CONTINUE_ON_ERROR =
+  process.env.MJ_CONTINUE_ON_ERROR !== '0' && process.env.MJ_CONTINUE_ON_ERROR !== 'false';
+
+/** Auto-generate runtime scenes when Prompt Catalog is exhausted */
+export const MJ_PRODUCTION_RUNTIME_SCENE_GEN =
+  process.env.MJ_RUNTIME_SCENES !== '0' && process.env.MJ_RUNTIME_SCENES !== 'false';
+
+/** Max regeneration attempts per job before marking failed */
+export const MJ_PRODUCTION_MAX_RETRIES = Number(process.env.MJ_MAX_RETRIES ?? 3);
+
+/** Auto-requeue regenerate jobs on orchestrator tick */
+export const MJ_PRODUCTION_AUTO_REGEN = process.env.MJ_AUTO_REGEN !== '0';
+
+/** Minimum catalog prompts remaining before warning */
+export const MJ_CATALOG_LOW_WATERMARK = Number(process.env.MJ_CATALOG_LOW_WATERMARK ?? 500);
+
+/** Dynamic prompt catalog bucket (runtime-generated scenes) */
+export const MJ_DYNAMIC_CATALOG_CATEGORY = '__generated__';
 
 /** Default folder structure created on bootstrap */
 export const MJ_LIBRARY_FOLDERS = [
