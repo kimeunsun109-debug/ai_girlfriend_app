@@ -4,6 +4,7 @@
  */
 import { join } from 'path';
 import { PHOTO_LIBRARY_ROOT, PHOTO_UNIVERSE_DATA_ROOT } from './photo-universe.config.js';
+import { resolveImportWatchFolder } from './runtime-environment.config.js';
 import { CHARACTER_SLUG_MAP } from '../lib/photo-catalog/types.js';
 
 export const MJ_PRODUCTION_PATHS = {
@@ -30,11 +31,8 @@ export const MJ_PRODUCTION_PHASE = Number(
     (MJ_PRODUCTION_MODE === 'production' ? 150 : 20)
 );
 
-/** Midjourney download / import watch folder (Windows Downloads default) */
-export const MJ_IMPORT_WATCH_FOLDER =
-  process.env.MJ_IMPORT_WATCH_FOLDER ??
-  process.env.PICKMETALK_MJ_IMPORT ??
-  join(process.env.USERPROFILE ?? process.env.HOME ?? '', 'Downloads', 'PickMeTalk_MJ');
+/** Midjourney download / import watch folder */
+export const MJ_IMPORT_WATCH_FOLDER = resolveImportWatchFolder();
 
 /** Photos per character per production run — override via env or CLI */
 export const MJ_PHOTOS_PER_CHARACTER = Number(

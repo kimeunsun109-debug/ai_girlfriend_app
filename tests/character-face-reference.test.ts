@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { join, resolve } from 'path';
-import { normalizePhotoLibraryRoot } from '../src/config/photo-universe.config.js';
-import { libraryRelativePath } from '../src/lib/photo-universe/paths.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { join } from 'path';
+import {
+  TEST_LIBRARY_ROOT,
+  TEST_IMPORT_WATCH_FOLDER,
+  resolvePhotoLibraryRoot,
+  resolveImportWatchFolder,
+  detectRuntime,
+  isWindowsDrivePath,
+} from '../src/config/runtime-environment.config.js';
 import {
   CHARACTER_FACE_IDENTITIES,
   CHARACTER_SLUGS,
@@ -9,27 +15,57 @@ import {
   getCharacterFaceIdentity,
 } from '../src/config/character-face-reference.config.js';
 
-describe('photo-universe path normalization', () => {
-  it('maps Windows drive path under cwd on non-Windows', () => {
-    if (process.platform === 'win32') return;
-    const normalized = normalizePhotoLibraryRoot('D:/PickMeTalk_PhotoLibrary');
-    expect(normalized).toBe(resolve(process.cwd(), 'D:/PickMeTalk_PhotoLibrary'));
+describe('runtime-environment.config', () => {
+  const origRuntime = process.env.PICKMETALK_RUNTIME;
+  const origLibrary = process.env.PHOTO_LIBRARY_ROOT;
+
+  afterEach(() => {
+    if (origRuntime === undefined) delete process.env.PICKMETALK_RUNTIME;
+    else process.env.PICKMETALK_RUNTIME = origRuntime;
+    if (origLibrary === undefined) delete process.env.PHOTO_LIBRARY_ROOT;
+    else process.env.PHOTO_LIBRARY_ROOT = origLibrary;
   });
 
-  it('libraryRelativePath returns correct relative path on Linux D: root', () => {
+  it('test runtime uses test-fixtures, not D: drive', () => {
+    process.env.PICKMETALK_RUNTIME = 'test';
+    delete process.env.PHOTO_LIBRARY_ROOT;
+    expect(resolvePhotoLibraryRoot()).toBe(TEST_LIBRARY_ROOT);
+    expect(resolvePhotoLibraryRoot()).not.toContain('/D:/');
+    expect(resolveImportWatchFolder()).toBe(TEST_IMPORT_WATCH_FOLDER);
+  });
+
+  it('ignores Windows drive path env on Linux test runtime', () => {
     if (process.platform === 'win32') return;
-    const libRoot = normalizePhotoLibraryRoot('D:/PickMeTalk_PhotoLibrary');
+    process.env.PICKMETALK_RUNTIME = 'test';
+    process.env.PHOTO_LIBRARY_ROOT = 'D:/PickMeTalk_PhotoLibrary';
+    expect(resolvePhotoLibraryRoot()).toBe(TEST_LIBRARY_ROOT);
+  });
+
+  it('detects production vs test runtime', () => {
+    process.env.PICKMETALK_RUNTIME = 'production';
+    expect(detectRuntime()).toBe('production');
+    process.env.PICKMETALK_RUNTIME = 'test';
+    expect(detectRuntime()).toBe('test');
+  });
+
+  it('identifies Windows drive paths', () => {
+    expect(isWindowsDrivePath('D:/PickMeTalk_PhotoLibrary')).toBe(true);
+    expect(isWindowsDrivePath('D:\\PickMeTalk_PhotoLibrary')).toBe(true);
+    expect(isWindowsDrivePath('/tmp/photo-library')).toBe(false);
+  });
+});
+
+describe('photo-universe paths (test runtime)', () => {
+  it('libraryRelativePath returns correct path under test-fixtures', async () => {
+    const { TEST_LIBRARY_ROOT: libRoot } = await import(
+      '../src/config/runtime-environment.config.js'
+    );
+    const { libraryRelativePath: relPath } = await import('../src/lib/photo-universe/paths.js');
     const absolutePath = join(libRoot, 'yuna', 'cafe', 'abc123.jpg');
-    const rel = libraryRelativePath(absolutePath);
+    const rel = relPath(absolutePath);
     expect(rel).toBe('yuna/cafe/abc123.jpg');
     expect(rel).not.toMatch(/^g\//);
-  });
-
-  it('libraryRelativePath handles nested character folders', () => {
-    const libRoot = normalizePhotoLibraryRoot('D:/PickMeTalk_PhotoLibrary');
-    const absolutePath = join(libRoot, 'narin', 'mirror', 'hash.webp');
-    const rel = libraryRelativePath(absolutePath);
-    expect(rel).toBe('narin/mirror/hash.webp');
+    expect(rel).not.toContain('/D:/');
   });
 });
 

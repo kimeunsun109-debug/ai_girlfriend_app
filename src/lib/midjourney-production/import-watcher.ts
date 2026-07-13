@@ -2,6 +2,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import { extname } from 'path';
 import { MJ_IMPORT_WATCH_FOLDER } from '../../config/midjourney-production.config.js';
 import { UNIVERSE_WATCH_DEBOUNCE_MS } from '../../config/photo-universe.config.js';
+import { PICKMETALK_RUNTIME } from '../../config/runtime-environment.config.js';
 import { SUPPORTED_EXTENSIONS } from '../photo-catalog/types.js';
 import { bootstrapPhotoLibrary } from './library-bootstrap.js';
 import { ingestPipeline } from './ingest-pipeline.js';
@@ -52,7 +53,8 @@ export function startImportWatcher(): FSWatcher {
   };
 
   importWatcher.on('add', schedule);
-  console.log(`[mj-import] watching ${MJ_IMPORT_WATCH_FOLDER}`);
+  console.log(`[mj-import] watching ${MJ_IMPORT_WATCH_FOLDER} (${PICKMETALK_RUNTIME} mode)`);
+  console.log('[mj-import] pipeline: Metadata → Thumbnail → Catalog → Face Verification → Quality Check');
   return importWatcher;
 }
 

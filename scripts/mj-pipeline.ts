@@ -1,9 +1,6 @@
 #!/usr/bin/env npx tsx
-/**
- * Full Midjourney Production Pipeline — bootstrap + queue + import watch + dashboard
- * npm run mj:pipeline -- --count 20
- */
 import 'dotenv/config';
+import { assertProductionRuntime } from '../src/config/runtime-environment.config.js';
 import {
   bootstrapPhotoLibrary,
   productionQueue,
@@ -15,6 +12,7 @@ import { startUniverseWatcher, stopUniverseWatcher } from '../src/lib/photo-univ
 import { MJ_PRODUCTION_PHASE } from '../src/config/midjourney-production.config.js';
 
 async function main() {
+  assertProductionRuntime('mj:pipeline');
   bootstrapPhotoLibrary();
 
   if (!productionQueue.getActiveRun()) {

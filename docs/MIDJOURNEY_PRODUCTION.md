@@ -2,6 +2,35 @@
 
 운영용 Midjourney → Photo Library 자동 구축 시스템.
 
+## Runtime 분리 (Production vs Test)
+
+| Runtime | OS | Photo Library | Import Watch |
+|---------|-----|---------------|--------------|
+| `production` | **Windows only** | `D:\PickMeTalk_PhotoLibrary` | `%USERPROFILE%\Downloads\PickMeTalk_MJ` |
+| `test` | Cloud/Linux OK | `test-fixtures/photo-library` | `test-fixtures/mj-import` |
+
+```bash
+# 운영 (Windows PC)
+PICKMETALK_RUNTIME=production npm run mj:init
+PICKMETALK_RUNTIME=production npm run mj:ready
+
+# Cloud 테스트
+PICKMETALK_RUNTIME=test npm run mj:yuna-test
+```
+
+Linux에서 `/workspace/D:/PickMeTalk...` 같은 hybrid 경로는 **생성되지 않습니다**.
+
+## Production Ready 체크
+
+```powershell
+npm run mj:init
+npm run mj:ready
+# 또는
+npm run mj:production -- --ready
+```
+
+체크리스트 항목: Windows OS, D:\ 경로, 5캐릭터 폴더, Watch Folder, Ingest 파이프라인
+
 ## Production Mode (장기 운영)
 
 ```powershell
@@ -106,6 +135,7 @@ MJ_CONTINUE_ON_ERROR=true      # 오류 시 중단하지 않음
 
 | Script | 설명 |
 |--------|------|
+| `mj:ready` | **Production Ready 체크리스트** |
 | `mj:init` | D:\PickMeTalk_PhotoLibrary 폴더 생성 |
 | `mj:production` | **운영 orchestrator** (top-up, regen, stats) |
 | `mj:queue` | Queue 생성 + 첫 MJ 프롬프트 출력 |

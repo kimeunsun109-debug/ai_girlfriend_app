@@ -1,10 +1,14 @@
 import { existsSync, mkdirSync } from 'fs';
-import { join, normalize, relative, resolve } from 'path';
+import { join, relative, resolve } from 'path';
 import {
   PHOTO_LIBRARY_ROOT,
   PHOTO_UNIVERSE_DATA_ROOT,
   PHOTO_UNIVERSE_PATHS,
 } from '../../config/photo-universe.config.js';
+import {
+  PICKMETALK_RUNTIME,
+  validateNoHybridPath,
+} from '../../config/runtime-environment.config.js';
 
 export function ensureUniverseDirs(): void {
   for (const dir of [
@@ -21,28 +25,28 @@ export function ensureUniverseDirs(): void {
 export function resolveLibraryPath(relativePath: string): string | null {
   const libRoot = resolve(PHOTO_LIBRARY_ROOT);
   const target = resolve(libRoot, relativePath.replace(/\\/g, '/'));
-  const normalized = normalize(target);
-  if (!normalized.startsWith(libRoot)) return null;
-  return normalized;
+  if (!target.startsWith(libRoot)) return null;
+  return target;
 }
 
 export function libraryRelativePath(absolutePath: string): string {
+  validateNoHybridPath(absolutePath, 'libraryRelativePath input');
   const libRoot = resolve(PHOTO_LIBRARY_ROOT);
   const resolved = resolve(absolutePath);
+
   if (resolved === libRoot) return '';
-  if (resolved.startsWith(libRoot + '/')) {
-    return resolved.slice(libRoot.length + 1).replace(/\\/g, '/');
-  }
-  // Fallback when absolutePath was built with raw D:/ root before normalization
+
   const rel = relative(libRoot, resolved);
-  if (rel && !rel.startsWith('..')) {
+  if (rel && !rel.startsWith('..') && !rel.startsWith('/')) {
     return rel.replace(/\\/g, '/');
   }
+
   const normalized = absolutePath.replace(/\\/g, '/');
   const rootNorm = PHOTO_LIBRARY_ROOT.replace(/\\/g, '/');
   if (normalized.startsWith(rootNorm + '/')) {
     return normalized.slice(rootNorm.length + 1);
   }
+
   return normalized.replace(/\\/g, '/');
 }
 
@@ -69,5 +73,8 @@ export function sidecarMetaPath(imageAbsolutePath: string): string {
 }
 
 export function isLibraryAvailable(): boolean {
+  if (PICKMETALK_RUNTIME === 'production' && process.platform !== 'win32') {
+    return false;
+  }
   return existsSync(PHOTO_LIBRARY_ROOT);
 }

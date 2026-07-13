@@ -10,3 +10,10 @@ export { productionOrchestrator, ProductionOrchestrator } from './production-orc
 export { productionStats, ProductionStats } from './production-stats.js';
 export { runtimeSceneGenerator, RuntimeSceneGenerator } from './runtime-scene-generator.js';
 export { logProduction } from './production-logger.js';
+export {
+  collectProductionReadyChecks,
+  renderProductionReadyReport,
+  runProductionReadyCheck,
+  type ProductionReadyReport,
+  type ReadinessCheck,
+} from './production-ready.js';

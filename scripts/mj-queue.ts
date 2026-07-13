@@ -1,9 +1,6 @@
 #!/usr/bin/env npx tsx
-/**
- * Create production queue and show first Midjourney prompt.
- * npm run mj:queue -- --count 20
- */
 import 'dotenv/config';
+import { assertProductionRuntime } from '../src/config/runtime-environment.config.js';
 import {
   bootstrapPhotoLibrary,
   productionQueue,
@@ -12,6 +9,7 @@ import {
 } from '../src/lib/midjourney-production/index.js';
 
 async function main() {
+  assertProductionRuntime('mj:queue');
   bootstrapPhotoLibrary();
 
   const countArg = process.argv.find((a) => a.startsWith('--count='));

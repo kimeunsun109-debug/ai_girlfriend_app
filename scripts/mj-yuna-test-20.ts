@@ -19,7 +19,7 @@ import {
   closeProductionDb,
 } from '../src/lib/midjourney-production/index.js';
 import { promptSelector } from '../src/lib/midjourney-production/prompt-selector.js';
-import { MJ_PRODUCTION_PATHS } from '../src/config/midjourney-production.config.js';
+import { MJ_PRODUCTION_PATHS, MJ_IMPORT_WATCH_FOLDER } from '../src/config/midjourney-production.config.js';
 import { PHOTO_UNIVERSE_DATA_ROOT } from '../src/config/photo-universe.config.js';
 
 const COUNT = 20;
@@ -103,14 +103,14 @@ async function main() {
   console.log('║  유나 20장 Midjourney Production Test    ║');
   console.log('╚══════════════════════════════════════════╝\n');
 
-  process.env.PHOTO_LIBRARY_ROOT =
-    process.env.PHOTO_LIBRARY_ROOT ?? join(process.cwd(), 'test-fixtures/yuna-photo-library');
-  process.env.MJ_IMPORT_WATCH_FOLDER =
-    process.env.MJ_IMPORT_WATCH_FOLDER ?? join(process.cwd(), 'test-fixtures/mj-import');
+  process.env.PICKMETALK_RUNTIME = 'test';
+  process.env.MJ_PRODUCTION_MODE = 'test';
+  delete process.env.PHOTO_LIBRARY_ROOT;
+  delete process.env.MJ_IMPORT_WATCH_FOLDER;
 
   bootstrapPhotoLibrary();
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  mkdirSync(process.env.MJ_IMPORT_WATCH_FOLDER, { recursive: true });
+  mkdirSync(MJ_IMPORT_WATCH_FOLDER, { recursive: true });
 
   await setupReferences();
 
