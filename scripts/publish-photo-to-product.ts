@@ -13,6 +13,7 @@
  * Optional: PHOTO_STORAGE_BUCKET, PHOTO_CDN_BASE_URL
  */
 
+import 'dotenv/config';
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { basename, extname } from 'node:path';
@@ -24,6 +25,91 @@ function arg(name: string): string | undefined {
 
 function normalizeCharacter(id: string): string {
   return id === 'yunseo' ? 'yoonseo' : id;
+}
+
+function productSupabaseConfig(): { url: string; key: string } {
+  const url = (process.env.PRODUCT_SUPABASE_URL ?? '').replace(/\/$/, '');
+  const key = process.env.PRODUCT_SUPABASE_SERVICE_ROLE_KEY ?? '';
+  if (!url || !key) {
+    console.error('Set PRODUCT_SUPABASE_URL and PRODUCT_SUPABASE_SERVICE_ROLE_KEY');
+    process.exit(1);
+  }
+  return { url, key };
+}
+
+function supabaseHeaders(key: string, extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    Authorization: `Bearer ${key}`,
+    apikey: key,
+    ...extra,
+  };
+}
+
+async function deleteStorageObject(
+  url: string,
+  key: string,
+  bucket: string,
+  storagePath: string
+): Promise<void> {
+  const res = await fetch(`${url}/storage/v1/object/${bucket}/${storagePath}`, {
+    method: 'DELETE',
+    headers: supabaseHeaders(key),
+  });
+  if (!res.ok) {
+    console.error(
+      'Warning: failed to remove orphaned storage object:',
+      res.status,
+      await res.text()
+    );
+  }
+}
+
+async function upsertCatalogRow(
+  url: string,
+  key: string,
+  character: string,
+  fingerprint: string,
+  row: Record<string, unknown>
+): Promise<unknown> {
+  const lookupRes = await fetch(
+    `${url}/rest/v1/character_photo_assets?character_id=eq.${encodeURIComponent(character)}&hash_fingerprint=eq.${encodeURIComponent(fingerprint)}&select=id&limit=1`,
+    { headers: supabaseHeaders(key) }
+  );
+  if (!lookupRes.ok) {
+    throw new Error(`Catalog lookup failed: ${lookupRes.status} ${await lookupRes.text()}`);
+  }
+
+  const existing = (await lookupRes.json()) as Array<{ id: string }>;
+  if (existing.length > 0) {
+    const updateRes = await fetch(
+      `${url}/rest/v1/character_photo_assets?id=eq.${encodeURIComponent(existing[0].id)}`,
+      {
+        method: 'PATCH',
+        headers: supabaseHeaders(key, {
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        }),
+        body: JSON.stringify(row),
+      }
+    );
+    if (!updateRes.ok) {
+      throw new Error(`Catalog update failed: ${updateRes.status} ${await updateRes.text()}`);
+    }
+    return updateRes.json();
+  }
+
+  const insertRes = await fetch(`${url}/rest/v1/character_photo_assets`, {
+    method: 'POST',
+    headers: supabaseHeaders(key, {
+      'Content-Type': 'application/json',
+      Prefer: 'return=representation',
+    }),
+    body: JSON.stringify(row),
+  });
+  if (!insertRes.ok) {
+    throw new Error(`Catalog insert failed: ${insertRes.status} ${await insertRes.text()}`);
+  }
+  return insertRes.json();
 }
 
 async function main() {
@@ -43,13 +129,7 @@ async function main() {
     process.exit(1);
   }
 
-  const url = (process.env.PRODUCT_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '').replace(/\/$/, '');
-  const key =
-    process.env.PRODUCT_SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) {
-    console.error('Set PRODUCT_SUPABASE_URL and PRODUCT_SUPABASE_SERVICE_ROLE_KEY');
-    process.exit(1);
-  }
+  const { url, key } = productSupabaseConfig();
 
   const bucket = process.env.PHOTO_STORAGE_BUCKET ?? 'character-photos';
   const bytes = readFileSync(file);
@@ -63,12 +143,10 @@ async function main() {
     `${url}/storage/v1/object/${bucket}/${storagePath}`,
     {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        apikey: key,
+      headers: supabaseHeaders(key, {
         'Content-Type': contentType,
         'x-upsert': 'true',
-      },
+      }),
       body: bytes,
     }
   );
@@ -98,24 +176,16 @@ async function main() {
     is_premium: false,
   };
 
-  const insertRes = await fetch(`${url}/rest/v1/character_photo_assets`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${key}`,
-      apikey: key,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify(row),
-  });
-
-  if (!insertRes.ok) {
-    console.error('Catalog insert failed:', insertRes.status, await insertRes.text());
+  let saved: unknown;
+  try {
+    saved = await upsertCatalogRow(url, key, character, fingerprint, row);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e);
+    await deleteStorageObject(url, key, bucket, storagePath);
     process.exit(1);
   }
 
-  const inserted = await insertRes.json();
-  console.log(JSON.stringify({ ok: true, asset: inserted }, null, 2));
+  console.log(JSON.stringify({ ok: true, asset: saved }, null, 2));
 }
 
 main().catch((e) => {
