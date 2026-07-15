@@ -1,0 +1,2690 @@
+From c8aa5e73501d3c70fda45918f7e6ae578d5d2c90 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 15 Jul 2026 14:44:15 +0000
+Subject: [PATCH] =?UTF-8?q?feat:=20architecture=20integration=20=E2=80=94?=
+ =?UTF-8?q?=20photo=20storage=20bridge=20+=20selective=20AI=20port?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Connect product to ops catalog without merging repos.
+
+- Photo Push: catalog select from character_photo_assets, album, viewer, web push APIs
+- Natural conversation polish + message variation (ops → Next.js)
+- Additive migration 011 (storage fields + memory_album_items)
+- Docs: PHOTO_STORAGE_BRIDGE, ARCHITECTURE_PRODUCT_OPS
+- Tests: tsc, lint, next build pass
+
+Base: cursor/photo-push-system-e030 (PR #15 foundation)
+---
+ .env.example                                  |  10 ++
+ app/(main)/album/page.tsx                     |  23 +++
+ app/(main)/settings/SettingsClient.tsx        |  18 ++
+ app/api/album/route.ts                        |  99 +++++++++++
+ app/api/chat/route.ts                         |   3 +-
+ app/api/photos/search/route.ts                |  55 ++++++
+ app/api/push/vapid-public-key/route.ts        |  14 ++
+ app/api/push/web-subscription/route.ts        |  74 ++++++++
+ components/album/AlbumClient.tsx              | 144 ++++++++++++++++
+ components/chat/PhotoMessageBubble.tsx        |  98 ++++++++---
+ components/layout/BottomNav.tsx               |   1 +
+ components/settings/WebPushEnableButton.tsx   | 121 ++++++++++++++
+ docs/ARCHITECTURE_PRODUCT_OPS.md              |  44 +++++
+ docs/PHOTO_PUSH.md                            |  31 ++--
+ docs/PHOTO_STORAGE_BRIDGE.md                  |  57 +++++++
+ lib/conversation/messageVariation.ts          | 110 ++++++++++++
+ .../naturalConversation.config.ts             |  98 +++++++++++
+ lib/conversation/naturalConversation.ts       | 158 ++++++++++++++++++
+ lib/conversation/stageDialogue.ts             |  41 +++++
+ lib/photoCatalog/categories.ts                | 124 ++++++++++++++
+ lib/photoCatalog/selectPhoto.ts               | 156 +++++++++++++++++
+ lib/photoCatalog/types.ts                     |  39 +++++
+ lib/photoPush/selector.ts                     |   2 +
+ lib/push/webPush.ts                           |  81 +++++++++
+ package-lock.json                             | 154 ++++++++++++++++-
+ package.json                                  |   2 +
+ services/analytics.ts                         |   3 +-
+ services/photoPush/deliver.ts                 | 138 ++++++++++++++-
+ services/photoPush/runner.ts                  |   9 +
+ services/responsePostProcess.ts               |  15 +-
+ .../migrations/011_photo_storage_bridge.sql   |  50 ++++++
+ 31 files changed, 1930 insertions(+), 42 deletions(-)
+ create mode 100644 app/(main)/album/page.tsx
+ create mode 100644 app/api/album/route.ts
+ create mode 100644 app/api/photos/search/route.ts
+ create mode 100644 app/api/push/vapid-public-key/route.ts
+ create mode 100644 app/api/push/web-subscription/route.ts
+ create mode 100644 components/album/AlbumClient.tsx
+ create mode 100644 components/settings/WebPushEnableButton.tsx
+ create mode 100644 docs/ARCHITECTURE_PRODUCT_OPS.md
+ create mode 100644 docs/PHOTO_STORAGE_BRIDGE.md
+ create mode 100644 lib/conversation/messageVariation.ts
+ create mode 100644 lib/conversation/naturalConversation.config.ts
+ create mode 100644 lib/conversation/naturalConversation.ts
+ create mode 100644 lib/conversation/stageDialogue.ts
+ create mode 100644 lib/photoCatalog/categories.ts
+ create mode 100644 lib/photoCatalog/selectPhoto.ts
+ create mode 100644 lib/photoCatalog/types.ts
+ create mode 100644 lib/push/webPush.ts
+ create mode 100644 supabase/migrations/011_photo_storage_bridge.sql
+
+diff --git a/.env.example b/.env.example
+index 415ffe9..aa0a273 100644
+--- a/.env.example
++++ b/.env.example
+@@ -15,6 +15,16 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
+ # Photo push cron (Vercel Cron → /api/cron/photo-push)
+ CRON_SECRET=
+ 
++# Photo Storage bridge (ops uploads; product reads)
++PHOTO_STORAGE_BUCKET=character-photos
++# PHOTO_CDN_BASE_URL=https://cdn.example.com
++
++# Web Push (optional — leave unset to mock)
++# NEXT_PUBLIC_VAPID_PUBLIC_KEY=
++# VAPID_PUBLIC_KEY=
++# VAPID_PRIVATE_KEY=
++# VAPID_SUBJECT=mailto:support@pickmetalk.com
++
+ # Optional: set to "true" to enable PWA in next.config
+ # ENABLE_PWA=false
+ 
+diff --git a/app/(main)/album/page.tsx b/app/(main)/album/page.tsx
+new file mode 100644
+index 0000000..6f1ed1a
+--- /dev/null
++++ b/app/(main)/album/page.tsx
+@@ -0,0 +1,23 @@
++import { AlbumClient } from "@/components/album/AlbumClient";
++import type { Metadata } from "next";
++
++export const metadata: Metadata = {
++  title: "앨범 | PickMeTalk",
++};
++
++export default async function AlbumPage({
++  searchParams,
++}: {
++  searchParams: Promise<{ characterId?: string }>;
++}) {
++  const sp = await searchParams;
++  return (
++    <main className="min-h-screen bg-gradient-to-b from-rose-50 to-white">
++      <header className="sticky top-0 z-10 border-b border-rose-100/80 bg-white/90 px-4 py-3 backdrop-blur">
++        <h1 className="text-lg font-semibold text-gray-900">추억 앨범</h1>
++        <p className="text-xs text-gray-500">캐릭터가 보낸 사진들</p>
++      </header>
++      <AlbumClient characterId={sp.characterId} />
++    </main>
++  );
++}
+diff --git a/app/(main)/settings/SettingsClient.tsx b/app/(main)/settings/SettingsClient.tsx
+index c277449..27a5611 100644
+--- a/app/(main)/settings/SettingsClient.tsx
++++ b/app/(main)/settings/SettingsClient.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+ import { LogoutButton } from "@/components/auth/LogoutButton";
++import { WebPushEnableButton } from "@/components/settings/WebPushEnableButton";
+ import { clearClientSessionData } from "@/lib/auth/clearClientSession";
+ import { FREE_DAILY_MESSAGE_LIMIT } from "@/lib/constants";
+ import { t } from "@/lib/i18n";
+@@ -189,6 +190,23 @@ export function SettingsClient({
+         </section>
+       )}
+ 
++      {/* 알림·앨범 */}
++      <section className="mb-6">
++        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
++          사진 &amp; 알림
++        </h2>
++        <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
++          <WebPushEnableButton />
++          <Link
++            href="/album"
++            className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2.5 text-sm text-gray-700 active:bg-gray-50"
++          >
++            추억 앨범 보기
++            <span className="text-gray-400">→</span>
++          </Link>
++        </div>
++      </section>
++
+       {/* 베타 안내 */}
+       <section className="mb-6 rounded-2xl bg-yellow-50 px-4 py-4 text-sm text-yellow-800">
+         <p className="font-semibold">🧪 베타 테스트 중</p>
+diff --git a/app/api/album/route.ts b/app/api/album/route.ts
+new file mode 100644
+index 0000000..8a1a0c9
+--- /dev/null
++++ b/app/api/album/route.ts
+@@ -0,0 +1,99 @@
++import { createClient } from "@/lib/supabase/server";
++import { NextResponse } from "next/server";
++
++/**
++ * GET /api/album?characterId=yuna
++ * Returns memory album items (photos sent via photo push), grouped by album_label.
++ */
++export async function GET(request: Request) {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) {
++    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++  }
++
++  const { searchParams } = new URL(request.url);
++  const characterId = searchParams.get("characterId");
++  const limit = Math.min(Number(searchParams.get("limit") ?? 60), 120);
++
++  let query = supabase
++    .from("memory_album_items")
++    .select(
++      "id, character_id, media_url, caption, category, album_label, sent_at, delivery_id"
++    )
++    .eq("user_id", user.id)
++    .order("sent_at", { ascending: false })
++    .limit(limit);
++
++  if (characterId) {
++    query = query.eq("character_id", characterId);
++  }
++
++  const { data, error } = await query;
++  if (error) {
++    // Fallback: derive from deliveries if album table missing
++    if (error.message.includes("memory_album_items") || error.code === "42P01") {
++      return await albumFromDeliveries(supabase, user.id, characterId, limit);
++    }
++    return NextResponse.json({ error: error.message }, { status: 500 });
++  }
++
++  const groups = groupByLabel(data ?? []);
++  return NextResponse.json({ items: data ?? [], groups });
++}
++
++async function albumFromDeliveries(
++  supabase: Awaited<ReturnType<typeof createClient>>,
++  userId: string,
++  characterId: string | null,
++  limit: number
++) {
++  let q = supabase
++    .from("photo_push_deliveries")
++    .select("id, character_id, media_url, caption, sent_at, scenario_id, metadata")
++    .eq("user_id", userId)
++    .order("sent_at", { ascending: false })
++    .limit(limit);
++  if (characterId) q = q.eq("character_id", characterId);
++
++  const { data, error } = await q;
++  if (error) {
++    return NextResponse.json({ error: error.message }, { status: 500 });
++  }
++
++  const items = (data ?? []).map((d) => {
++    const meta = (d.metadata ?? {}) as { category?: string };
++    const category = meta.category ?? "selfie";
++    return {
++      id: d.id,
++      character_id: d.character_id,
++      media_url: d.media_url,
++      caption: d.caption,
++      category,
++      album_label: "추억",
++      sent_at: d.sent_at,
++      delivery_id: d.id,
++    };
++  });
++
++  return NextResponse.json({ items, groups: groupByLabel(items) });
++}
++
++function groupByLabel(
++  items: Array<{ album_label: string; [k: string]: unknown }>
++) {
++  const map = new Map<string, typeof items>();
++  for (const item of items) {
++    const label = item.album_label || "추억";
++    const list = map.get(label) ?? [];
++    list.push(item);
++    map.set(label, list);
++  }
++  return Array.from(map.entries()).map(([label, photos]) => ({
++    label,
++    count: photos.length,
++    photos,
++  }));
++}
+diff --git a/app/api/chat/route.ts b/app/api/chat/route.ts
+index f8ee34b..bf57e74 100644
+--- a/app/api/chat/route.ts
++++ b/app/api/chat/route.ts
+@@ -467,7 +467,8 @@ export async function POST(request: Request) {
+ 
+         const { text: trimmed, follow_up } = trace.sync("Response Parse", () =>
+           postProcessAssistantReply(
+-            fullReply || getStreamFallback(characterId, userText)
++            fullReply || getStreamFallback(characterId, userText),
++            { characterId }
+           )
+         );
+ 
+diff --git a/app/api/photos/search/route.ts b/app/api/photos/search/route.ts
+new file mode 100644
+index 0000000..d5a9f9d
+--- /dev/null
++++ b/app/api/photos/search/route.ts
+@@ -0,0 +1,55 @@
++import { createClient } from "@/lib/supabase/server";
++import { createAdminClient } from "@/lib/supabase/admin";
++import { selectCatalogPhoto } from "@/lib/photoCatalog/selectPhoto";
++import { NextResponse } from "next/server";
++
++/**
++ * GET /api/photos/search?characterId=&category=&emotion=&scenarioId=
++ * Service-oriented catalog lookup (authenticated). Used by admin tooling / future UI.
++ */
++export async function GET(request: Request) {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) {
++    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++  }
++
++  const { searchParams } = new URL(request.url);
++  const characterId = searchParams.get("characterId");
++  if (!characterId) {
++    return NextResponse.json(
++      { error: "characterId required" },
++      { status: 400 }
++    );
++  }
++
++  const scenarioId = searchParams.get("scenarioId") ?? "selfie";
++  const category = searchParams.get("category");
++  const emotion = searchParams.get("emotion");
++
++  // Use admin for catalog reads if available (RLS may hide assets); else user client
++  let client = supabase;
++  try {
++    client = createAdminClient();
++  } catch {
++    client = supabase;
++  }
++
++  const hit = await selectCatalogPhoto(client, {
++    characterId,
++    scenarioId,
++    category: category ?? undefined,
++    emotion,
++  });
++
++  if (!hit) {
++    return NextResponse.json({ photo: null, source: "empty" });
++  }
++
++  return NextResponse.json({
++    photo: hit,
++    source: "catalog",
++  });
++}
+diff --git a/app/api/push/vapid-public-key/route.ts b/app/api/push/vapid-public-key/route.ts
+new file mode 100644
+index 0000000..c48c9e9
+--- /dev/null
++++ b/app/api/push/vapid-public-key/route.ts
+@@ -0,0 +1,14 @@
++import { getVapidPublicKey } from "@/lib/push/webPush";
++import { NextResponse } from "next/server";
++
++/** GET /api/push/vapid-public-key */
++export async function GET() {
++  const key = getVapidPublicKey();
++  if (!key) {
++    return NextResponse.json(
++      { configured: false, publicKey: null },
++      { status: 200 }
++    );
++  }
++  return NextResponse.json({ configured: true, publicKey: key });
++}
+diff --git a/app/api/push/web-subscription/route.ts b/app/api/push/web-subscription/route.ts
+new file mode 100644
+index 0000000..39c0991
+--- /dev/null
++++ b/app/api/push/web-subscription/route.ts
+@@ -0,0 +1,74 @@
++import { createClient } from "@/lib/supabase/server";
++import { NextResponse } from "next/server";
++import { z } from "zod";
++
++const bodySchema = z.object({
++  endpoint: z.string().url(),
++  keys: z.object({
++    p256dh: z.string().min(1),
++    auth: z.string().min(1),
++  }),
++  userAgent: z.string().optional(),
++});
++
++/** POST /api/push/web-subscription — save browser PushSubscription */
++export async function POST(request: Request) {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) {
++    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++  }
++
++  const json = await request.json().catch(() => null);
++  const parsed = bodySchema.safeParse(json);
++  if (!parsed.success) {
++    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
++  }
++
++  const { endpoint, keys, userAgent } = parsed.data;
++
++  const { error } = await supabase.from("push_subscriptions").upsert(
++    {
++      user_id: user.id,
++      platform: "web",
++      endpoint,
++      keys,
++      user_agent: userAgent ?? null,
++      last_used_at: new Date().toISOString(),
++    },
++    { onConflict: "user_id,endpoint" }
++  );
++
++  if (error) {
++    return NextResponse.json({ error: error.message }, { status: 500 });
++  }
++
++  return NextResponse.json({ ok: true });
++}
++
++/** DELETE /api/push/web-subscription — remove by endpoint */
++export async function DELETE(request: Request) {
++  const supabase = await createClient();
++  const {
++    data: { user },
++  } = await supabase.auth.getUser();
++  if (!user) {
++    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
++  }
++
++  const json = await request.json().catch(() => null);
++  const endpoint = json?.endpoint as string | undefined;
++  if (!endpoint) {
++    return NextResponse.json({ error: "endpoint required" }, { status: 400 });
++  }
++
++  await supabase
++    .from("push_subscriptions")
++    .delete()
++    .eq("user_id", user.id)
++    .eq("endpoint", endpoint);
++
++  return NextResponse.json({ ok: true });
++}
+diff --git a/components/album/AlbumClient.tsx b/components/album/AlbumClient.tsx
+new file mode 100644
+index 0000000..3fe3987
+--- /dev/null
++++ b/components/album/AlbumClient.tsx
+@@ -0,0 +1,144 @@
++"use client";
++
++import Image from "next/image";
++import Link from "next/link";
++import { useEffect, useState } from "react";
++
++interface AlbumItem {
++  id: string;
++  character_id: string;
++  media_url: string;
++  caption: string | null;
++  category: string;
++  album_label: string;
++  sent_at: string;
++}
++
++interface Group {
++  label: string;
++  count: number;
++  photos: AlbumItem[];
++}
++
++const CHAR_NAMES: Record<string, string> = {
++  yuna: "유나",
++  narin: "나린",
++  yoonseo: "윤서",
++  eunha: "은하",
++  jiyu: "지유",
++};
++
++export function AlbumClient({ characterId }: { characterId?: string }) {
++  const [groups, setGroups] = useState<Group[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [viewer, setViewer] = useState<AlbumItem | null>(null);
++
++  useEffect(() => {
++    const qs = characterId
++      ? `?characterId=${encodeURIComponent(characterId)}`
++      : "";
++    setLoading(true);
++    void fetch(`/api/album${qs}`)
++      .then(async (r) => {
++        if (!r.ok) throw new Error((await r.json()).error ?? "load failed");
++        return r.json() as Promise<{ groups: Group[] }>;
++      })
++      .then((j) => setGroups(j.groups ?? []))
++      .catch((e: Error) => setError(e.message))
++      .finally(() => setLoading(false));
++  }, [characterId]);
++
++  if (loading) {
++    return <p className="px-4 py-8 text-center text-sm text-gray-400">불러오는 중…</p>;
++  }
++
++  if (error) {
++    return (
++      <p className="px-4 py-8 text-center text-sm text-red-500">
++        앨범을 불러오지 못했어요. ({error})
++      </p>
++    );
++  }
++
++  if (!groups.length) {
++    return (
++      <div className="px-4 py-12 text-center">
++        <p className="text-sm text-gray-500">아직 받은 사진이 없어요.</p>
++        <p className="mt-2 text-xs text-gray-400">
++          캐릭터가 사진을 보내면 여기에 쌓여요.
++        </p>
++        <Link
++          href="/characters"
++          className="mt-6 inline-block text-sm text-pink-600 underline"
++        >
++          캐릭터 만나러 가기
++        </Link>
++      </div>
++    );
++  }
++
++  return (
++    <>
++      <div className="space-y-8 px-4 pb-24 pt-2">
++        {groups.map((g) => (
++          <section key={g.label}>
++            <h2 className="mb-3 text-sm font-semibold text-gray-700">
++              {g.label}{" "}
++              <span className="font-normal text-gray-400">({g.count})</span>
++            </h2>
++            <div className="grid grid-cols-3 gap-1.5">
++              {g.photos.map((p) => (
++                <button
++                  key={p.id}
++                  type="button"
++                  onClick={() => setViewer(p)}
++                  className="relative aspect-[3/4] overflow-hidden rounded-lg bg-gray-100"
++                >
++                  <Image
++                    src={p.media_url}
++                    alt={p.caption ?? "사진"}
++                    fill
++                    className="object-cover"
++                    unoptimized
++                    sizes="33vw"
++                  />
++                </button>
++              ))}
++            </div>
++          </section>
++        ))}
++      </div>
++
++      {viewer ? (
++        <div className="fixed inset-0 z-[80] flex flex-col bg-black/92">
++          <div className="flex items-center justify-between px-4 py-3 text-white">
++            <span className="text-sm opacity-80">
++              {CHAR_NAMES[viewer.character_id] ?? viewer.character_id}
++            </span>
++            <button
++              type="button"
++              className="rounded-full px-3 py-1 text-sm hover:bg-white/10"
++              onClick={() => setViewer(null)}
++            >
++              닫기
++            </button>
++          </div>
++          <div className="flex flex-1 items-center justify-center p-4">
++            {/* eslint-disable-next-line @next/next/no-img-element */}
++            <img
++              src={viewer.media_url}
++              alt={viewer.caption ?? ""}
++              className="max-h-[80vh] max-w-full object-contain"
++            />
++          </div>
++          {viewer.caption ? (
++            <p className="px-5 pb-8 text-center text-sm text-white/90">
++              {viewer.caption}
++            </p>
++          ) : null}
++        </div>
++      ) : null}
++    </>
++  );
++}
+diff --git a/components/chat/PhotoMessageBubble.tsx b/components/chat/PhotoMessageBubble.tsx
+index 91b6162..9bc8953 100644
+--- a/components/chat/PhotoMessageBubble.tsx
++++ b/components/chat/PhotoMessageBubble.tsx
+@@ -2,7 +2,7 @@
+ 
+ import { trackEvent } from "@/services/analytics";
+ import Image from "next/image";
+-import { useEffect } from "react";
++import { useCallback, useEffect, useState } from "react";
+ 
+ export function PhotoMessageBubble({
+   mediaUrl,
+@@ -15,6 +15,8 @@ export function PhotoMessageBubble({
+   photoDeliveryId?: string | null;
+   characterId?: string;
+ }) {
++  const [viewerOpen, setViewerOpen] = useState(false);
++
+   useEffect(() => {
+     if (!photoDeliveryId) return;
+     trackEvent("photo_push_viewed", characterId, { deliveryId: photoDeliveryId });
+@@ -25,27 +27,83 @@ export function PhotoMessageBubble({
+     }).catch(() => undefined);
+   }, [photoDeliveryId, characterId]);
+ 
++  const openViewer = useCallback(() => {
++    setViewerOpen(true);
++    trackEvent("photo_viewer_open", characterId, {
++      deliveryId: photoDeliveryId ?? undefined,
++    });
++  }, [characterId, photoDeliveryId]);
++
++  useEffect(() => {
++    if (!viewerOpen) return;
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === "Escape") setViewerOpen(false);
++    };
++    window.addEventListener("keydown", onKey);
++    return () => window.removeEventListener("keydown", onKey);
++  }, [viewerOpen]);
++
+   return (
+-    <div className="flex flex-col gap-1.5">
+-      <div className="relative max-w-[220px] overflow-hidden rounded-2xl rounded-tl-sm bg-gray-100 shadow-sm">
+-        <Image
+-          src={mediaUrl}
+-          alt="캐릭터가 보낸 사진"
+-          width={220}
+-          height={280}
+-          className="h-auto w-full object-cover"
+-          unoptimized
+-          onError={(e) => {
+-            const img = e.currentTarget;
+-            img.style.display = "none";
+-          }}
+-        />
++    <>
++      <div className="flex flex-col gap-1.5">
++        <button
++          type="button"
++          onClick={openViewer}
++          className="relative max-w-[220px] overflow-hidden rounded-2xl rounded-tl-sm bg-gray-100 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-300"
++          aria-label="사진 크게 보기"
++        >
++          <Image
++            src={mediaUrl}
++            alt="캐릭터가 보낸 사진"
++            width={220}
++            height={280}
++            className="h-auto w-full object-cover"
++            unoptimized
++            onError={(e) => {
++              const img = e.currentTarget;
++              img.style.display = "none";
++            }}
++          />
++        </button>
++        {caption.trim() ? (
++          <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.45] text-gray-800">
++            {caption}
++          </p>
++        ) : null}
+       </div>
+-      {caption.trim() ? (
+-        <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.45] text-gray-800">
+-          {caption}
+-        </p>
++
++      {viewerOpen ? (
++        <div
++          className="fixed inset-0 z-[80] flex flex-col bg-black/92"
++          role="dialog"
++          aria-modal="true"
++          aria-label="사진 보기"
++        >
++          <div className="flex items-center justify-between px-4 py-3 text-white">
++            <span className="text-sm opacity-80">사진</span>
++            <button
++              type="button"
++              className="rounded-full px-3 py-1 text-sm hover:bg-white/10"
++              onClick={() => setViewerOpen(false)}
++            >
++              닫기
++            </button>
++          </div>
++          <div className="flex flex-1 items-center justify-center overflow-auto p-4">
++            {/* eslint-disable-next-line @next/next/no-img-element */}
++            <img
++              src={mediaUrl}
++              alt={caption || "캐릭터 사진"}
++              className="max-h-[85vh] max-w-full object-contain"
++            />
++          </div>
++          {caption.trim() ? (
++            <p className="px-5 pb-8 text-center text-sm text-white/90">
++              {caption}
++            </p>
++          ) : null}
++        </div>
+       ) : null}
+-    </div>
++    </>
+   );
+ }
+diff --git a/components/layout/BottomNav.tsx b/components/layout/BottomNav.tsx
+index d3f43c2..9ffbdb7 100644
+--- a/components/layout/BottomNav.tsx
++++ b/components/layout/BottomNav.tsx
+@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
+ const tabs = [
+   { href: "/characters", label: "캐릭터", icon: "👤" },
+   { href: "/conversations", label: "채팅", icon: "💬" },
++  { href: "/album", label: "앨범", icon: "📷" },
+   { href: "/settings",  label: "설정",   icon: "⚙️" },
+ ];
+ 
+diff --git a/components/settings/WebPushEnableButton.tsx b/components/settings/WebPushEnableButton.tsx
+new file mode 100644
+index 0000000..4a28ce2
+--- /dev/null
++++ b/components/settings/WebPushEnableButton.tsx
+@@ -0,0 +1,121 @@
++"use client";
++
++import { useCallback, useEffect, useState } from "react";
++
++function urlBase64ToUint8Array(base64String: string) {
++  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
++  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
++  const raw = atob(base64);
++  const out = new Uint8Array(raw.length);
++  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
++  return out;
++}
++
++export function WebPushEnableButton() {
++  const [status, setStatus] = useState<
++    "idle" | "unsupported" | "ready" | "subscribed" | "error" | "loading"
++  >("idle");
++  const [message, setMessage] = useState<string | null>(null);
++
++  useEffect(() => {
++    if (typeof window === "undefined") return;
++    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
++      setStatus("unsupported");
++      return;
++    }
++    void fetch("/api/push/vapid-public-key")
++      .then((r) => r.json())
++      .then((j: { configured?: boolean }) => {
++        if (!j.configured) {
++          setStatus("unsupported");
++          setMessage("알림 키가 아직 설정되지 않았어요.");
++        } else {
++          setStatus(
++            Notification.permission === "granted" ? "ready" : "ready"
++          );
++        }
++      })
++      .catch(() => setStatus("unsupported"));
++  }, []);
++
++  const enable = useCallback(async () => {
++    setStatus("loading");
++    setMessage(null);
++    try {
++      const keyRes = await fetch("/api/push/vapid-public-key");
++      const { publicKey, configured } = (await keyRes.json()) as {
++        publicKey: string | null;
++        configured: boolean;
++      };
++      if (!configured || !publicKey) {
++        setStatus("unsupported");
++        setMessage("알림 키가 아직 설정되지 않았어요.");
++        return;
++      }
++
++      const permission = await Notification.requestPermission();
++      if (permission !== "granted") {
++        setStatus("error");
++        setMessage("알림 권한이 거부되었어요.");
++        return;
++      }
++
++      // Prefer existing PWA SW when enabled; otherwise register a minimal push SW later.
++      let reg = await navigator.serviceWorker.getRegistration();
++      if (!reg) {
++        reg = await navigator.serviceWorker.register("/sw.js");
++      }
++      await navigator.serviceWorker.ready;
++
++      const sub = await reg.pushManager.subscribe({
++        userVisibleOnly: true,
++        applicationServerKey: urlBase64ToUint8Array(publicKey),
++      });
++
++      const json = sub.toJSON();
++      const res = await fetch("/api/push/web-subscription", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({
++          endpoint: json.endpoint,
++          keys: json.keys,
++          userAgent: navigator.userAgent,
++        }),
++      });
++      if (!res.ok) throw new Error("구독 저장 실패");
++
++      setStatus("subscribed");
++      setMessage("사진 알림이 켜졌어요.");
++    } catch (e) {
++      console.error(e);
++      setStatus("error");
++      setMessage("알림 설정에 실패했어요. 잠시 후 다시 시도해 주세요.");
++    }
++  }, []);
++
++  if (status === "unsupported") {
++    return (
++      <p className="text-xs text-gray-500">
++        {message ?? "이 환경에서는 브라우저 알림을 사용할 수 없어요."}
++      </p>
++    );
++  }
++
++  return (
++    <div className="flex flex-col gap-2">
++      <button
++        type="button"
++        onClick={() => void enable()}
++        disabled={status === "loading" || status === "subscribed"}
++        className="w-full rounded-xl border border-pink-200 bg-pink-50 py-2.5 text-sm font-medium text-pink-700 active:bg-pink-100 disabled:opacity-60"
++      >
++        {status === "subscribed"
++          ? "알림 켜짐"
++          : status === "loading"
++            ? "설정 중…"
++            : "사진 알림 켜기"}
++      </button>
++      {message ? <p className="text-xs text-gray-500">{message}</p> : null}
++    </div>
++  );
++}
+diff --git a/docs/ARCHITECTURE_PRODUCT_OPS.md b/docs/ARCHITECTURE_PRODUCT_OPS.md
+new file mode 100644
+index 0000000..3c47214
+--- /dev/null
++++ b/docs/ARCHITECTURE_PRODUCT_OPS.md
+@@ -0,0 +1,44 @@
++# PickMeTalk Architecture — Product ↔ Ops
++
++## Roles (do not merge repos)
++
++| Repo | Role |
++|------|------|
++| **`app_girl-friend`** | Product — chat, auth, relationship, photo **delivery**, Vercel |
++| **`ai_girlfriend_app`** | Ops — Midjourney production, Photo Library, QC, Windows automation |
++
++```
++Ops produces content → Storage/CDN → Product consumes & pushes to users
++```
++
++## Selectively ported into product (this integration)
++
++| Feature | Location |
++|---------|----------|
++| Photo Push (planner/deliver/followup/cron) | `services/photoPush/*`, PR #15 base |
++| Storage catalog select | `lib/photoCatalog/*` |
++| Photo viewer + album | `PhotoMessageBubble`, `/album`, `/api/album` |
++| Web Push (VAPID) | `lib/push/webPush.ts`, `/api/push/*` |
++| Natural Conversation polish | `lib/conversation/*` → `responsePostProcess` |
++| Stage dialogue (5 levels) | `lib/conversation/stageDialogue.ts` |
++
++## Must stay in ops only
++
++Midjourney Production, Prompt Catalog builder, Watch Folder, Face Verification,
++Quality Score pipelines, Windows paths (`D:\PickMeTalk_PhotoLibrary`), Redis/BullMQ,
++Express API, Prisma schema, batch dashboards.
++
++## Migrations (additive only)
++
++- `010_photo_push_system.sql` — push tables + message media columns
++- `011_photo_storage_bridge.sql` — catalog fields + `memory_album_items`
++
++Never drop existing product schema.
++
++## Recommended next steps
++
++1. Grant Cursor/GitHub App write access to `app_girl-friend` and land this branch as PR
++2. Apply migrations `010` + `011` on Supabase
++3. Ops: publish first catalog batch to Storage + `character_photo_assets`
++4. Set `VAPID_*` + `CRON_SECRET` on Vercel
++5. Later: deeper Adaptive Personality DNA (optional) — product already has emotion/memory
+diff --git a/docs/PHOTO_PUSH.md b/docs/PHOTO_PUSH.md
+index 78031f2..da5d4b1 100644
+--- a/docs/PHOTO_PUSH.md
++++ b/docs/PHOTO_PUSH.md
+@@ -53,23 +53,34 @@ app/api/photo-push/[deliveryId]/track/route.ts
+ 
+ ## 사진 에셋 (~1000장/캐릭터)
+ 
+-**현재:** `character_photo_assets` 테이블 + emotion PNG placeholder  
+-**다음 단계:**
++**Storage bridge:** see [`PHOTO_STORAGE_BRIDGE.md`](./PHOTO_STORAGE_BRIDGE.md)
+ 
+-1. `scripts/import_character_photos.mts` — Storage 업로드 + 메타 일괄 등록
+-2. `hash_fingerprint`로 유사 사진 제외
+-3. 생성 파이프라인: 휴대폰 셀카 스타일, 시나리오 태그 매핑
++1. Ops uploads ready images to Supabase Storage / CDN
++2. Ops upserts `character_photo_assets` (`is_active`, `category`, `hash_fingerprint`, …)
++3. Product `selectCatalogPhoto()` prefers catalog; else emotion PNG placeholder
+ 
+-## Web Push (미연동)
++Migration: `011_photo_storage_bridge.sql`
+ 
+-`push_subscriptions` 테이블 준비됨.  
+-`ENABLE_PWA=true` + VAPID 키 추가 시 `lib/push/` 모듈 연결.
++## Web Push
++
++- Tables: `push_subscriptions`
++- APIs: `GET /api/push/vapid-public-key`, `POST/DELETE /api/push/web-subscription`
++- Settings → “사진 알림 켜기”
++- Env: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
++
++Without keys, deliver still works in-app; OS notification is mocked/skipped.
++
++## Album / Viewer
++
++- Chat: tap photo → full-screen viewer
++- `/album` + `GET /api/album` — grouped memory photos
+ 
+ ## i18n
+ 
+ 캡션·후속 멘트: `data/photoPush/scenarios.ko.json`  
+-`{name}` 플레이스홀더 → `personalizeCaption()`
++`{name}` 플레이스홀더 → `personalizeCaption()` + natural conversation polish
+ 
+ ## 마이그레이션
+ 
+-`supabase/migrations/010_photo_push_system.sql`
++- `supabase/migrations/010_photo_push_system.sql`
++- `supabase/migrations/011_photo_storage_bridge.sql`
+diff --git a/docs/PHOTO_STORAGE_BRIDGE.md b/docs/PHOTO_STORAGE_BRIDGE.md
+new file mode 100644
+index 0000000..56ea87a
+--- /dev/null
++++ b/docs/PHOTO_STORAGE_BRIDGE.md
+@@ -0,0 +1,57 @@
++# Photo Storage Bridge
++
++Ops (`ai_girlfriend_app`) **generates** photos.  
++Product (`app_girl-friend`) **only reads & delivers** them.
++
++```
++[Windows Ops]
++  MJ Pipeline → Face/Quality → Thumbnail → Catalog
++       ↓
++  Upload to Supabase Storage (or CDN)
++       ↓
++  Upsert row into character_photo_assets
++       ↓
++[Product / Vercel]
++  selectCatalogPhoto() → photo push deliver → chat bubble / album / web push
++```
++
++## Env (product)
++
++| Variable | Purpose |
++|----------|---------|
++| `PHOTO_STORAGE_BUCKET` | Default `character-photos` |
++| `PHOTO_CDN_BASE_URL` | Optional CDN prefix for public URLs |
++| `NEXT_PUBLIC_SUPABASE_URL` | Used to build `/storage/v1/object/public/...` when CDN unset |
++
++## Path convention
++
++```
++{character_id}/{category}/{hash}.jpg
++```
++
++Examples: `yuna/coffee/a1b2c3.jpg`, `yoonseo/selfie/d4e5f6.webp`
++
++**Slug note:** product character id is `yoonseo` (ops sometimes used `yunseo` — normalize on ingest).
++
++## Catalog row (`character_photo_assets`)
++
++Required for product selection:
++
++- `character_id`, `scenario_id`, `storage_path`
++- `category`, `emotion`, `hash_fingerprint`
++- `is_active=true`, optional `quality_score`, `public_url`
++
++Migration: `011_photo_storage_bridge.sql`
++
++## Product selectors
++
++- `lib/photoCatalog/selectPhoto.ts` — cron deliver path
++- `GET /api/photos/search` — authenticated catalog probe
++
++If catalog is empty, product falls back to `/assets/characters/{id}/{emotion}.png`.
++
++## What product MUST NOT do
++
++- Run Midjourney / watch folders / Windows paths
++- Import Prisma / Express / Redis / BullMQ
++- Rewrite ops Photo Library on disk
+diff --git a/lib/conversation/messageVariation.ts b/lib/conversation/messageVariation.ts
+new file mode 100644
+index 0000000..e20ec48
+--- /dev/null
++++ b/lib/conversation/messageVariation.ts
+@@ -0,0 +1,110 @@
++import { polishCharacterMessage } from "./naturalConversation";
++
++const RECENT_EMOJIS: string[] = [];
++const RECENT_OPENERS: string[] = [];
++const MAX_HISTORY = 20;
++
++const OPENER_POOL = [
++  "있잖아",
++  "그거 알아",
++  "아 맞다",
++  "흠",
++  "음~",
++  "야",
++  "있지",
++  "오늘",
++  "방금",
++  "지금",
++  "아까",
++  "헤헤",
++  "ㅋㅋ",
++];
++
++const EMOJI_POOL = [
++  "😊",
++  "😏",
++  "💕",
++  "😴",
++  "🥺",
++  "😤",
++  "☕",
++  "💅",
++  "🌧️",
++  "📸",
++  "❤️",
++];
++
++/**
++ * Outbound caption/message variation — ops Living AI rules, product-adapted.
++ */
++export class MessageVariation {
++  avoidGreeting(message: string): string {
++    const banned = ["안녕하세요", "안녕하십니까", "반갑습니다", "Hello"];
++    for (const b of banned) {
++      if (message.startsWith(b)) {
++        return message.replace(b, randomPickNonRecent(OPENER_POOL, RECENT_OPENERS));
++      }
++    }
++    return message;
++  }
++
++  diversifyEmoji(message: string): string {
++    const emojiMatch = message.match(
++      /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu
++    );
++    if (!emojiMatch) {
++      if (Math.random() < 0.35) {
++        const emoji = randomPickNonRecent(EMOJI_POOL, RECENT_EMOJIS);
++        return `${message} ${emoji}`;
++      }
++      return message;
++    }
++
++    const used = emojiMatch[0]!;
++    if (RECENT_EMOJIS.includes(used)) {
++      const replacement = randomPickNonRecent(EMOJI_POOL, RECENT_EMOJIS);
++      message = message.replace(used, replacement);
++      trackRecent(RECENT_EMOJIS, replacement);
++    } else {
++      trackRecent(RECENT_EMOJIS, used);
++    }
++    return message;
++  }
++
++  finalize(
++    message: string,
++    userName: string | null | undefined,
++    useName: boolean,
++    characterSlug?: string
++  ): string {
++    let result = this.avoidGreeting(message);
++    result = this.diversifyEmoji(result);
++
++    if (useName && userName && !result.includes(userName) && Math.random() < 0.3) {
++      result = `${userName}~ ${result}`;
++    }
++
++    return polishCharacterMessage(result, {
++      userName: userName ?? undefined,
++      useName,
++      characterSlug,
++    });
++  }
++}
++
++function randomPickNonRecent(pool: string[], recent: string[]): string {
++  const available = pool.filter((p) => !recent.includes(p));
++  const pick =
++    available.length > 0
++      ? available[Math.floor(Math.random() * available.length)]!
++      : pool[Math.floor(Math.random() * pool.length)]!;
++  trackRecent(recent, pick);
++  return pick;
++}
++
++function trackRecent(list: string[], item: string): void {
++  list.push(item);
++  if (list.length > MAX_HISTORY) list.shift();
++}
++
++export const messageVariation = new MessageVariation();
+diff --git a/lib/conversation/naturalConversation.config.ts b/lib/conversation/naturalConversation.config.ts
+new file mode 100644
+index 0000000..3acca7b
+--- /dev/null
++++ b/lib/conversation/naturalConversation.config.ts
+@@ -0,0 +1,98 @@
++/**
++ * Natural Conversation rules — ported from ops (ai_girlfriend_app).
++ * Chat-facing only: ban AI-ish phrases, limit length/emoji, intent reactions.
++ * Character slug note: product uses `yoonseo`; ops used `yunseo`.
++ */
++
++/** Phrases that sound like a helpful AI assistant — strip from outbound. */
++export const BANNED_AI_PHRASES = [
++  "그럴 수도 있겠네요",
++  "좋은 생각인 것 같아요",
++  "도움이 되었으면 좋겠습니다",
++  "이해합니다",
++  "공감합니다",
++  "말씀해주셔서 감사합니다",
++  "어떻게 도와드릴까요",
++  "그 부분은",
++  "가능성이 있습니다",
++  "정리보면",
++  "결론적으로",
++  "추천드립니다",
++  "알겠습니다",
++  "네, 맞습니다",
++  "흥미롭네요",
++  "좋은 질문입니다",
++  "수고 많으셨습니다",
++  "수고하셨습니다",
++  "도움이 필요하시면",
++  "제가 도와드릴",
++  "참고하시기 바랍니다",
++  "도움이 되길",
++  "궁금한 점이",
++  "문의해 주세요",
++] as const;
++
++export const ALLOWED_EMOJIS = [
++  "🙂",
++  "🥺",
++  "😂",
++  "🤣",
++  "😭",
++  "😑",
++  "🙄",
++  "😒",
++  "😳",
++  "❤️",
++  "😊",
++  "💕",
++  "ㅠㅠ",
++] as const;
++
++export const MAX_SENTENCES = 3;
++export const MAX_MESSAGE_LENGTH = 120;
++export const MAX_EMOJIS_PER_MESSAGE = 2;
++
++export const INTENT_REACTIONS: Record<string, string[]> = {
++  tired: [
++    "헐...\n오늘 무슨 일 있었어?",
++    "많이 힘들었나 보다.",
++    "오늘 진짜 고생했네.",
++    "피곤해 보인다... 좀 쉬어.",
++  ],
++  food: ["헐 나도 먹고 싶다ㅋㅋ", "무슨 맛?", "나도 시켜...", "대박 맛있겠다"],
++  commute_done: ["왔네ㅎㅎ", "드디어 왔다.", "얼른 쉬어.", "오늘 진짜 기다렸잖아."],
++  happy: ["헐 좋겠다ㅋㅋ", "나도 기분 좋아진다", "대박ㅎㅎ", "완전 부럽다"],
++  sad: ["헐... 괜찮아?", "많이 속상했어?", "옆에 있어줄게.", "힘들면 말해."],
++  bored: ["나도 심심해", "뭐할까?", "나랑 얘기해ㅋㅋ"],
++  angry: ["헐 왜??", "진짜 짜증나겠다", "그건 좀 아니다"],
++  work: ["야근이야...?", "힘들겠다 ㅠ", "끝나면 연락해"],
++};
++
++export const INTENT_KEYWORDS: Record<string, string[]> = {
++  tired: ["피곤", "힘들", "지쳤", "졸려", "죽겠", "녹초", "번아웃"],
++  food: ["치킨", "먹", "배고", "라면", "피자", "시켰", "맛집", "밥", "야식", "떡볶이"],
++  commute_done: ["퇴근", "왔어", "도착", "집에 왔", "들어왔", "끝났"],
++  happy: ["좋아", "기뻐", "최고", "행복", "신나", "대박", "좋았"],
++  sad: ["슬퍼", "우울", "속상", "눈물", "울었", "힘들어"],
++  bored: ["심심", "할 게 없", "뭐하지", "지루"],
++  angry: ["짜증", "빡", "열받", "화나", "미쳐"],
++  work: ["야근", "회사", "일해", "업무", "과제", "시험"],
++};
++
++/** Product character ids (yoonseo, not yunseo). */
++export const CHARACTER_SPEECH_HINTS: Record<
++  string,
++  { prefix?: string[]; suffix?: string[] }
++> = {
++  yuna: { suffix: ["ㅎㅎ", "~"] },
++  narin: { prefix: ["흥, ", "..."] },
++  yoonseo: { suffix: ["."] },
++  eunha: { prefix: ["ㅋㅋ ", "헐 "], suffix: ["!"] },
++  jiyu: { prefix: ["야 ", "ㅋㅋ "], suffix: ["~"] },
++};
++
++export function normalizeCharacterSlug(slug?: string | null): string | undefined {
++  if (!slug) return undefined;
++  if (slug === "yunseo") return "yoonseo";
++  return slug;
++}
+diff --git a/lib/conversation/naturalConversation.ts b/lib/conversation/naturalConversation.ts
+new file mode 100644
+index 0000000..300ac3c
+--- /dev/null
++++ b/lib/conversation/naturalConversation.ts
+@@ -0,0 +1,158 @@
++/**
++ * NaturalConversationEngine — polish outbound chat/captions to sound human.
++ * Ported from ops; no Prisma / Express dependencies.
++ */
++
++import {
++  ALLOWED_EMOJIS,
++  BANNED_AI_PHRASES,
++  CHARACTER_SPEECH_HINTS,
++  INTENT_KEYWORDS,
++  INTENT_REACTIONS,
++  MAX_EMOJIS_PER_MESSAGE,
++  MAX_MESSAGE_LENGTH,
++  MAX_SENTENCES,
++  normalizeCharacterSlug,
++} from "./naturalConversation.config";
++
++export interface ConversationContext {
++  userName?: string;
++  characterSlug?: string;
++  stageLevel?: number;
++  useName?: boolean;
++}
++
++const EMOJI_REGEX = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
++const SENTENCE_SPLIT = /(?<=[.!?…~])\s+|\n+/u;
++
++function randomPick<T>(arr: readonly T[]): T {
++  return arr[Math.floor(Math.random() * arr.length)]!;
++}
++
++export class NaturalConversationEngine {
++  containsBannedPhrase(text: string): boolean {
++    const lower = text.toLowerCase();
++    return BANNED_AI_PHRASES.some((p) => lower.includes(p.toLowerCase()));
++  }
++
++  stripBannedPhrases(text: string): string {
++    const sentences = this.splitSentences(text);
++    const filtered = sentences.filter((s) => !this.containsBannedPhrase(s));
++    if (filtered.length === 0) {
++      return randomPick(["헐", "진짜?", "ㅋㅋ", "그래?"]);
++    }
++    return filtered.join(" ");
++  }
++
++  limitSentences(text: string, max = MAX_SENTENCES): string {
++    return this.splitSentences(text).slice(0, max).join(" ");
++  }
++
++  limitEmojis(text: string, max = MAX_EMOJIS_PER_MESSAGE): string {
++    const matches = text.match(EMOJI_REGEX) ?? [];
++    if (matches.length === 0) return text;
++
++    let count = 0;
++    return text
++      .replace(EMOJI_REGEX, (emoji) => {
++        const allowed = (ALLOWED_EMOJIS as readonly string[]).includes(emoji);
++        if (!allowed) return "";
++        if (count >= max) return "";
++        count++;
++        return emoji;
++      })
++      .replace(/\s{2,}/g, " ")
++      .trim();
++  }
++
++  reduceQuestionSpam(text: string): string {
++    const sentences = this.splitSentences(text);
++    if (sentences.length <= 1) return text;
++
++    const questions = sentences.filter((s) => s.trim().endsWith("?"));
++    if (questions.length <= 1) return text;
++
++    const nonQuestions = sentences.filter((s) => !s.trim().endsWith("?"));
++    const lastQuestion = questions[questions.length - 1]!;
++    return [...nonQuestions, lastQuestion].join(" ");
++  }
++
++  polishOutbound(message: string, ctx: ConversationContext = {}): string {
++    if (!message?.trim()) return "ㅋㅋ";
++
++    let result = message.trim();
++    result = this.stripBannedPhrases(result);
++    result = this.limitSentences(result);
++    result = this.reduceQuestionSpam(result);
++    result = this.limitEmojis(result);
++    result = this.applyCharacterHint(
++      result,
++      normalizeCharacterSlug(ctx.characterSlug)
++    );
++    result = result.slice(0, MAX_MESSAGE_LENGTH).trim();
++
++    if (!result) return "ㅋㅋ";
++    return result;
++  }
++
++  detectIntent(userContent: string): string | null {
++    const lower = userContent.toLowerCase();
++    for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
++      if (keywords.some((k) => lower.includes(k))) return intent;
++    }
++    return null;
++  }
++
++  reactToUserMessage(
++    userContent: string,
++    ctx: ConversationContext = {}
++  ): string {
++    const intent = this.detectIntent(userContent);
++    const pool = intent ? INTENT_REACTIONS[intent] : null;
++
++    let reaction = pool
++      ? randomPick(pool)
++      : randomPick(["그래?", "헐", "진짜?", "ㅋㅋ", "오 그래?"]);
++
++    if (
++      ctx.useName &&
++      ctx.userName &&
++      Math.random() < 0.3 &&
++      !reaction.includes(ctx.userName)
++    ) {
++      reaction = `${ctx.userName} ${reaction}`;
++    }
++
++    return this.polishOutbound(reaction, ctx);
++  }
++
++  private splitSentences(text: string): string[] {
++    return text
++      .split(SENTENCE_SPLIT)
++      .map((s) => s.trim())
++      .filter(Boolean);
++  }
++
++  private applyCharacterHint(message: string, slug?: string): string {
++    if (!slug) return message;
++    const hints = CHARACTER_SPEECH_HINTS[slug];
++    if (!hints) return message;
++
++    if (hints.prefix && Math.random() < 0.15) {
++      const prefix = randomPick(hints.prefix);
++      if (!message.startsWith(prefix.trim())) {
++        message = `${prefix}${message}`;
++      }
++    }
++    return message;
++  }
++}
++
++export const naturalConversationEngine = new NaturalConversationEngine();
++
++export function polishCharacterMessage(
++  message: string,
++  ctx: ConversationContext = {}
++): string {
++  return naturalConversationEngine.polishOutbound(message, ctx);
++}
+diff --git a/lib/conversation/stageDialogue.ts b/lib/conversation/stageDialogue.ts
+new file mode 100644
+index 0000000..394c353
+--- /dev/null
++++ b/lib/conversation/stageDialogue.ts
+@@ -0,0 +1,41 @@
++/**
++ * Stage-aware dialogue snippets mapped to product 5-level relationship.
++ * Ops used 8 stages — we compress: 1→1, 2-3→2, 4-5→3, 6→4, 7-8→5.
++ */
++
++import type { RelationshipLevel } from "@/types";
++
++const DIALOGUE: Record<string, Partial<Record<RelationshipLevel, string[]>>> = {
++  thanks: {
++    1: ["고마워.", "고마워"],
++    2: ["고마워!", "고마워~", "고마워 ㅎㅎ"],
++    3: ["헤헤 고마워😊", "고마워~ 설레"],
++    4: ["고마워 자기야💕", "고마워~ 사랑해"],
++    5: ["역시 내 편은 너밖에 없어❤️", "고마워, 평생 함께하자"],
++  },
++  miss_you: {
++    1: ["오늘 바빠?"],
++    2: ["보고 싶어"],
++    3: ["보고 싶어~ 많이"],
++    4: ["너 없으면 하루가 길어"],
++    5: ["매일 보고 싶어, 영원히"],
++  },
++};
++
++export function pickStageLine(
++  topic: keyof typeof DIALOGUE,
++  level: RelationshipLevel
++): string | null {
++  const pool = DIALOGUE[topic]?.[level];
++  if (!pool?.length) {
++    // Fall back to nearest lower level
++    for (let l = level - 1; l >= 1; l--) {
++      const alt = DIALOGUE[topic]?.[l as RelationshipLevel];
++      if (alt?.length) {
++        return alt[Math.floor(Math.random() * alt.length)]!;
++      }
++    }
++    return null;
++  }
++  return pool[Math.floor(Math.random() * pool.length)]!;
++}
+diff --git a/lib/photoCatalog/categories.ts b/lib/photoCatalog/categories.ts
+new file mode 100644
+index 0000000..cc17fd4
+--- /dev/null
++++ b/lib/photoCatalog/categories.ts
+@@ -0,0 +1,124 @@
++/**
++ * Category slug helpers for product photo catalog.
++ * Prisma-free rewrite of ops category-mapper (slug/aliases only).
++ */
++
++export interface CategoryDef {
++  slug: string;
++  defaultEmotion: string;
++  aliases: string[];
++}
++
++export const CATEGORY_DEFS: CategoryDef[] = [
++  { slug: "hair", defaultEmotion: "shy", aliases: ["hair", "salon", "머리", "미용실"] },
++  {
++    slug: "coffee",
++    defaultEmotion: "happy",
++    aliases: ["coffee", "cafe", "커피", "카페"],
++  },
++  { slug: "nail", defaultEmotion: "happy", aliases: ["nail", "네일"] },
++  {
++    slug: "tteokbokki",
++    defaultEmotion: "excited",
++    aliases: ["tteok", "tteokbokki", "떡볶이"],
++  },
++  { slug: "rain", defaultEmotion: "loving", aliases: ["rain", "비", "우산"] },
++  {
++    slug: "alcohol",
++    defaultEmotion: "tired",
++    aliases: ["drink", "alcohol", "술"],
++  },
++  {
++    slug: "morning",
++    defaultEmotion: "sleepy",
++    aliases: ["morning", "bed", "아침", "침대"],
++  },
++  { slug: "selfie", defaultEmotion: "happy", aliases: ["selfie", "셀카"] },
++  {
++    slug: "weekend",
++    defaultEmotion: "happy",
++    aliases: ["weekend", "주말"],
++  },
++  { slug: "game", defaultEmotion: "excited", aliases: ["game", "게임"] },
++  {
++    slug: "overtime",
++    defaultEmotion: "tired",
++    aliases: ["overtime", "야근"],
++  },
++  { slug: "leave", defaultEmotion: "happy", aliases: ["leave", "퇴근"] },
++  {
++    slug: "exercise",
++    defaultEmotion: "excited",
++    aliases: ["gym", "exercise", "운동"],
++  },
++  { slug: "walk", defaultEmotion: "happy", aliases: ["walk", "산책"] },
++  { slug: "snow", defaultEmotion: "excited", aliases: ["snow", "눈"] },
++  {
++    slug: "cherry",
++    defaultEmotion: "loving",
++    aliases: ["cherry", "blossom", "벚꽃"],
++  },
++  { slug: "brunch", defaultEmotion: "happy", aliases: ["brunch", "브런치"] },
++  { slug: "home", defaultEmotion: "neutral", aliases: ["home", "집"] },
++  { slug: "reading", defaultEmotion: "neutral", aliases: ["read", "독서"] },
++  {
++    slug: "dessert",
++    defaultEmotion: "happy",
++    aliases: ["dessert", "bakery", "디저트"],
++  },
++  { slug: "sad", defaultEmotion: "sad", aliases: ["sad", "슬픔"] },
++  { slug: "happy", defaultEmotion: "happy", aliases: ["happy", "기쁨"] },
++];
++
++/** Album UI grouping for product memories page. */
++export const ALBUM_CATEGORY_MAP: Record<string, string> = {
++  selfie: "셀카",
++  coffee: "카페",
++  cafe: "카페",
++  tteokbokki: "음식",
++  food: "음식",
++  dessert: "음식",
++  brunch: "음식",
++  rain: "비 오는 날",
++  cherry: "봄",
++  snow: "겨울",
++  happy: "추억",
++  weekend: "데이트",
++  hair: "셀카",
++  nail: "셀카",
++  morning: "일상",
++  home: "일상",
++  overtime: "일상",
++  leave: "일상",
++  game: "취미",
++  exercise: "취미",
++  walk: "산책",
++  sad: "감정",
++  alcohol: "저녁",
++  reading: "일상",
++};
++
++export const EMOTION_FALLBACK_CATEGORIES: Record<string, string[]> = {
++  sleepy: ["morning", "home", "selfie"],
++  sad: ["sad", "home", "selfie"],
++  happy: ["happy", "selfie", "weekend"],
++  neutral: ["selfie", "home", "coffee"],
++  excited: ["weekend", "game", "selfie"],
++  shy: ["hair", "selfie", "happy"],
++  tired: ["overtime", "alcohol", "morning"],
++  loving: ["rain", "happy", "selfie"],
++};
++
++export function scenarioToCategory(scenarioId: string): string {
++  const lower = scenarioId.toLowerCase();
++  for (const def of CATEGORY_DEFS) {
++    if (def.slug === lower || def.aliases.some((a) => lower.includes(a))) {
++      return def.slug;
++    }
++  }
++  return "selfie";
++}
++
++export function albumLabelForCategory(category: string): string {
++  return ALBUM_CATEGORY_MAP[category] ?? "추억";
++}
+diff --git a/lib/photoCatalog/selectPhoto.ts b/lib/photoCatalog/selectPhoto.ts
+new file mode 100644
+index 0000000..1d44cef
+--- /dev/null
++++ b/lib/photoCatalog/selectPhoto.ts
+@@ -0,0 +1,156 @@
++/**
++ * Storage bridge — product reads ready photos from Supabase Storage / CDN.
++ * Ops (ai_girlfriend_app) owns generation; product never runs Midjourney.
++ */
++
++import type { SupabaseClient } from "@supabase/supabase-js";
++import {
++  EMOTION_FALLBACK_CATEGORIES,
++  scenarioToCategory,
++} from "./categories";
++import type {
++  CatalogSelectParams,
++  CharacterPhotoAssetRow,
++} from "./types";
++
++const DEFAULT_BUCKET = "character-photos";
++
++export function photoStorageBucket(): string {
++  return process.env.PHOTO_STORAGE_BUCKET?.trim() || DEFAULT_BUCKET;
++}
++
++export function photoCdnBaseUrl(): string | null {
++  const base = process.env.PHOTO_CDN_BASE_URL?.trim();
++  return base ? base.replace(/\/$/, "") : null;
++}
++
++/** Build public URL for a storage path (CDN preferred). */
++export function publicUrlForStoragePath(storagePath: string): string {
++  const cdn = photoCdnBaseUrl();
++  if (cdn) return `${cdn}/${storagePath.replace(/^\//, "")}`;
++
++  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
++  const bucket = photoStorageBucket();
++  if (supabaseUrl) {
++    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath.replace(/^\//, "")}`;
++  }
++  return storagePath;
++}
++
++function mapRow(row: Record<string, unknown>): CharacterPhotoAssetRow {
++  return {
++    id: String(row.id),
++    character_id: String(row.character_id),
++    scenario_id: String(row.scenario_id),
++    storage_path: String(row.storage_path),
++    public_url: (row.public_url as string | null) ?? null,
++    category: (row.category as string | null) ?? null,
++    tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
++    emotion: (row.emotion as string | null) ?? null,
++    min_affection: Number(row.min_affection ?? 0),
++    min_level: Number(row.min_level ?? 1),
++    is_premium: Boolean(row.is_premium),
++    is_active: row.is_active === undefined ? true : Boolean(row.is_active),
++    season: (row.season as string | null) ?? null,
++    time_of_day: (row.time_of_day as string | null) ?? null,
++    hash_fingerprint: (row.hash_fingerprint as string | null) ?? null,
++    quality_score:
++      row.quality_score === null || row.quality_score === undefined
++        ? null
++        : Number(row.quality_score),
++  };
++}
++
++function resolveMediaUrl(asset: CharacterPhotoAssetRow): string {
++  if (asset.public_url) return asset.public_url;
++  return publicUrlForStoragePath(asset.storage_path);
++}
++
++/**
++ * Select an active catalog photo with fallbacks (category → emotion → any).
++ * Returns null if catalog is empty (caller may use emotion PNG placeholder).
++ */
++export async function selectCatalogPhoto(
++  supabase: SupabaseClient,
++  params: CatalogSelectParams
++): Promise<{
++  assetId: string;
++  mediaUrl: string;
++  fingerprint: string | null;
++  category: string;
++  emotion: string | null;
++} | null> {
++  const category =
++    params.category ?? scenarioToCategory(params.scenarioId);
++  const exclude = params.excludeFingerprints ?? new Set<string>();
++  const minLevel = params.minLevel ?? 1;
++
++  const tryQuery = async (filters: {
++    scenarioExact?: boolean;
++    category?: string;
++    emotion?: string | null;
++    requireActive?: boolean;
++  }) => {
++    let q = supabase
++      .from("character_photo_assets")
++      .select(
++        "id, character_id, scenario_id, storage_path, public_url, category, tags, emotion, min_affection, min_level, is_premium, is_active, season, time_of_day, hash_fingerprint, quality_score"
++      )
++      .eq("character_id", params.characterId)
++      .lte("min_level", minLevel);
++
++    if (filters.requireActive !== false) {
++      q = q.eq("is_active", true);
++    }
++    if (filters.scenarioExact) {
++      q = q.eq("scenario_id", params.scenarioId);
++    }
++    if (filters.category) {
++      q = q.eq("category", filters.category);
++    }
++    if (filters.emotion) {
++      q = q.eq("emotion", filters.emotion);
++    }
++
++    const { data, error } = await q.limit(40);
++    if (error || !data?.length) return null;
++
++    const rows = data
++      .map((r) => mapRow(r as Record<string, unknown>))
++      .filter((r) => !r.hash_fingerprint || !exclude.has(r.hash_fingerprint))
++      .sort((a, b) => (b.quality_score ?? 0) - (a.quality_score ?? 0));
++
++    if (!rows.length) return null;
++    const pick = rows[Math.floor(Math.random() * Math.min(rows.length, 8))]!;
++    return {
++      assetId: pick.id,
++      mediaUrl: resolveMediaUrl(pick),
++      fingerprint: pick.hash_fingerprint,
++      category: pick.category ?? category,
++      emotion: pick.emotion,
++    };
++  };
++
++  // 1) exact scenario
++  const exact = await tryQuery({ scenarioExact: true });
++  if (exact) return exact;
++
++  // 2) category match
++  const byCat = await tryQuery({ category });
++  if (byCat) return byCat;
++
++  // 3) emotion fallback categories
++  const emotion = params.emotion ?? null;
++  if (emotion) {
++    for (const cat of EMOTION_FALLBACK_CATEGORIES[emotion] ?? []) {
++      const hit = await tryQuery({ category: cat, emotion });
++      if (hit) return hit;
++    }
++    const byEmotion = await tryQuery({ emotion });
++    if (byEmotion) return byEmotion;
++  }
++
++  // 4) any active for character
++  const any = await tryQuery({});
++  return any;
++}
+diff --git a/lib/photoCatalog/types.ts b/lib/photoCatalog/types.ts
+new file mode 100644
+index 0000000..c13c52e
+--- /dev/null
++++ b/lib/photoCatalog/types.ts
+@@ -0,0 +1,39 @@
++/** Product-side photo catalog types (Storage consumer — not Midjourney). */
++
++export type PhotoEmotion =
++  | "happy"
++  | "sad"
++  | "sleepy"
++  | "shy"
++  | "excited"
++  | "tired"
++  | "loving"
++  | "neutral";
++
++export interface CharacterPhotoAssetRow {
++  id: string;
++  character_id: string;
++  scenario_id: string;
++  storage_path: string;
++  public_url: string | null;
++  category: string | null;
++  tags: string[];
++  emotion: string | null;
++  min_affection: number;
++  min_level: number;
++  is_premium: boolean;
++  is_active: boolean;
++  season: string | null;
++  time_of_day: string | null;
++  hash_fingerprint: string | null;
++  quality_score: number | null;
++}
++
++export interface CatalogSelectParams {
++  characterId: string;
++  scenarioId: string;
++  emotion?: string | null;
++  category?: string | null;
++  excludeFingerprints?: Set<string>;
++  minLevel?: number;
++}
+diff --git a/lib/photoPush/selector.ts b/lib/photoPush/selector.ts
+index 0a22b47..cd6ef99 100644
+--- a/lib/photoPush/selector.ts
++++ b/lib/photoPush/selector.ts
+@@ -27,6 +27,8 @@ export interface SelectedPhotoPush {
+   assetUrl: string;
+   assetId: string | null;
+   caption: string;
++  /** Ops catalog category slug when resolved from Storage */
++  category?: string;
+ }
+ 
+ export function pickCaption(
+diff --git a/lib/push/webPush.ts b/lib/push/webPush.ts
+new file mode 100644
+index 0000000..839901e
+--- /dev/null
++++ b/lib/push/webPush.ts
+@@ -0,0 +1,81 @@
++/**
++ * Web Push helper — VAPID-based browser notifications.
++ * Uses dynamic import of `web-push` when available; mocks when keys missing.
++ */
++
++export interface WebPushPayload {
++  title: string;
++  body: string;
++  imageUrl?: string;
++  data: Record<string, string>;
++}
++
++export interface PushSubscriptionKeys {
++  endpoint: string;
++  p256dh: string;
++  auth: string;
++}
++
++export function getVapidPublicKey(): string | null {
++  return process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()
++    || process.env.VAPID_PUBLIC_KEY?.trim()
++    || null;
++}
++
++export function isWebPushConfigured(): boolean {
++  const pub = getVapidPublicKey();
++  const priv = process.env.VAPID_PRIVATE_KEY?.trim();
++  return Boolean(pub && priv);
++}
++
++export async function sendWebPush(
++  subscription: PushSubscriptionKeys,
++  payload: WebPushPayload
++): Promise<{ success: boolean; expired?: boolean }> {
++  if (!isWebPushConfigured()) {
++    console.info("[web-push mock]", {
++      endpoint: subscription.endpoint.slice(0, 48),
++      title: payload.title,
++      body: payload.body.slice(0, 80),
++    });
++    return { success: true };
++  }
++
++  try {
++    // Optional at runtime when keys missing; package is a normal dependency
++    const webpush = await import("web-push").catch(() => null);
++    if (!webpush) {
++      console.warn("[web-push] package not installed; mock send");
++      return { success: true };
++    }
++
++    const subject =
++      process.env.VAPID_SUBJECT?.trim() || "mailto:support@pickmetalk.com";
++    const publicKey = getVapidPublicKey()!;
++    const privateKey = process.env.VAPID_PRIVATE_KEY!.trim();
++
++    webpush.setVapidDetails(subject, publicKey, privateKey);
++
++    await webpush.sendNotification(
++      {
++        endpoint: subscription.endpoint,
++        keys: { p256dh: subscription.p256dh, auth: subscription.auth },
++      },
++      JSON.stringify({
++        title: payload.title,
++        body: payload.body,
++        image: payload.imageUrl,
++        data: payload.data,
++      }),
++      { TTL: 3600, urgency: "high" }
++    );
++    return { success: true };
++  } catch (err: unknown) {
++    const statusCode = (err as { statusCode?: number }).statusCode;
++    if (statusCode === 410 || statusCode === 404) {
++      return { success: false, expired: true };
++    }
++    console.error("[web-push] send failed", err);
++    return { success: false };
++  }
++}
+diff --git a/package-lock.json b/package-lock.json
+index 7bfaac6..efccb4c 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -20,6 +20,7 @@
+         "react": "^19.0.0",
+         "react-dom": "^19.0.0",
+         "tailwind-merge": "^3.0.2",
++        "web-push": "^3.6.7",
+         "zod": "^3.24.2"
+       },
+       "devDependencies": {
+@@ -28,6 +29,7 @@
+         "@types/node": "^22.13.5",
+         "@types/react": "^19.0.10",
+         "@types/react-dom": "^19.0.4",
++        "@types/web-push": "^3.6.4",
+         "eslint": "^9.21.0",
+         "eslint-config-next": "^15.2.0",
+         "postcss": "^8.5.3",
+@@ -1728,6 +1730,7 @@
+       "version": "1.10.0",
+       "resolved": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.10.0.tgz",
+       "integrity": "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA==",
++      "dev": true,
+       "license": "MIT",
+       "optional": true,
+       "dependencies": {
+@@ -1972,6 +1975,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -1994,6 +1998,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2016,6 +2021,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2032,6 +2038,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2048,6 +2055,7 @@
+       "cpu": [
+         "arm"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2064,6 +2072,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2080,6 +2089,7 @@
+       "cpu": [
+         "ppc64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2096,6 +2106,7 @@
+       "cpu": [
+         "riscv64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2112,6 +2123,7 @@
+       "cpu": [
+         "s390x"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2128,6 +2140,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2144,6 +2157,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2160,6 +2174,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2176,6 +2191,7 @@
+       "cpu": [
+         "arm"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2198,6 +2214,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2220,6 +2237,7 @@
+       "cpu": [
+         "ppc64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2242,6 +2260,7 @@
+       "cpu": [
+         "riscv64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2264,6 +2283,7 @@
+       "cpu": [
+         "s390x"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2286,6 +2306,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2308,6 +2329,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2330,6 +2352,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0",
+       "optional": true,
+       "os": [
+@@ -2352,6 +2375,7 @@
+       "cpu": [
+         "wasm32"
+       ],
++      "dev": true,
+       "license": "Apache-2.0 AND LGPL-3.0-or-later AND MIT",
+       "optional": true,
+       "dependencies": {
+@@ -2371,6 +2395,7 @@
+       "cpu": [
+         "arm64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0 AND LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2390,6 +2415,7 @@
+       "cpu": [
+         "ia32"
+       ],
++      "dev": true,
+       "license": "Apache-2.0 AND LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -2409,6 +2435,7 @@
+       "cpu": [
+         "x64"
+       ],
++      "dev": true,
+       "license": "Apache-2.0 AND LGPL-3.0-or-later",
+       "optional": true,
+       "os": [
+@@ -3226,6 +3253,16 @@
+       "integrity": "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==",
+       "license": "MIT"
+     },
++    "node_modules/@types/web-push": {
++      "version": "3.6.4",
++      "resolved": "https://registry.npmjs.org/@types/web-push/-/web-push-3.6.4.tgz",
++      "integrity": "sha512-GnJmSr40H3RAnj0s34FNTcJi1hmWFV5KXugE0mYWnYhgTAHLJ/dJKAwDmvPJYMke0RplY2XE9LnM4hqSqKIjhQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/node": "*"
++      }
++    },
+     "node_modules/@typescript-eslint/eslint-plugin": {
+       "version": "8.60.0",
+       "resolved": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.60.0.tgz",
+@@ -4041,6 +4078,15 @@
+         "acorn": "^6.0.0 || ^7.0.0 || ^8.0.0"
+       }
+     },
++    "node_modules/agent-base": {
++      "version": "7.1.4",
++      "resolved": "https://registry.npmjs.org/agent-base/-/agent-base-7.1.4.tgz",
++      "integrity": "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 14"
++      }
++    },
+     "node_modules/ajv": {
+       "version": "6.15.0",
+       "resolved": "https://registry.npmjs.org/ajv/-/ajv-6.15.0.tgz",
+@@ -4329,6 +4375,18 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/asn1.js": {
++      "version": "5.4.1",
++      "resolved": "https://registry.npmjs.org/asn1.js/-/asn1.js-5.4.1.tgz",
++      "integrity": "sha512-+I//4cYPccV8LdmBLiX8CYvf9Sp3vQsrqu2QNXRcrbiWvcx/UdlFiqUJJzxRQxgsZmvhXhn4cSKeSmoFjVdupA==",
++      "license": "MIT",
++      "dependencies": {
++        "bn.js": "^4.0.0",
++        "inherits": "^2.0.1",
++        "minimalistic-assert": "^1.0.0",
++        "safer-buffer": "^2.1.0"
++      }
++    },
+     "node_modules/ast-types-flow": {
+       "version": "0.0.8",
+       "resolved": "https://registry.npmjs.org/ast-types-flow/-/ast-types-flow-0.0.8.tgz",
+@@ -4515,6 +4573,12 @@
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
++    "node_modules/bn.js": {
++      "version": "4.12.5",
++      "resolved": "https://registry.npmjs.org/bn.js/-/bn.js-4.12.5.tgz",
++      "integrity": "sha512-3aRg6/JxfffFD+OlOjOFR3Vo79l39ooBTFucxx+MT3dhCtzn3EmiUPQo+6/OZuI2jbXi3YKgmiTFBgChQMwIRQ==",
++      "license": "MIT"
++    },
+     "node_modules/bplist-parser": {
+       "version": "0.3.2",
+       "resolved": "https://registry.npmjs.org/bplist-parser/-/bplist-parser-0.3.2.tgz",
+@@ -4593,6 +4657,12 @@
+         "node": "*"
+       }
+     },
++    "node_modules/buffer-equal-constant-time": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/buffer-equal-constant-time/-/buffer-equal-constant-time-1.0.1.tgz",
++      "integrity": "sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==",
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/buffer-from": {
+       "version": "1.1.2",
+       "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
+@@ -5083,6 +5153,15 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/ecdsa-sig-formatter": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/ecdsa-sig-formatter/-/ecdsa-sig-formatter-1.0.11.tgz",
++      "integrity": "sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/ejs": {
+       "version": "3.1.10",
+       "resolved": "https://registry.npmjs.org/ejs/-/ejs-3.1.10.tgz",
+@@ -6326,6 +6405,28 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/http_ece": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/http_ece/-/http_ece-1.2.0.tgz",
++      "integrity": "sha512-JrF8SSLVmcvc5NducxgyOrKXe3EsyHMgBFgSaIUGmArKe+rwr0uphRkRXvwiom3I+fpIfoItveHrfudL8/rxuA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=16"
++      }
++    },
++    "node_modules/https-proxy-agent": {
++      "version": "7.0.6",
++      "resolved": "https://registry.npmjs.org/https-proxy-agent/-/https-proxy-agent-7.0.6.tgz",
++      "integrity": "sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==",
++      "license": "MIT",
++      "dependencies": {
++        "agent-base": "^7.1.2",
++        "debug": "4"
++      },
++      "engines": {
++        "node": ">= 14"
++      }
++    },
+     "node_modules/iceberg-js": {
+       "version": "0.8.1",
+       "resolved": "https://registry.npmjs.org/iceberg-js/-/iceberg-js-0.8.1.tgz",
+@@ -7075,6 +7176,27 @@
+         "node": ">=4.0"
+       }
+     },
++    "node_modules/jwa": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/jwa/-/jwa-2.0.1.tgz",
++      "integrity": "sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==",
++      "license": "MIT",
++      "dependencies": {
++        "buffer-equal-constant-time": "^1.0.1",
++        "ecdsa-sig-formatter": "1.0.11",
++        "safe-buffer": "^5.0.1"
++      }
++    },
++    "node_modules/jws": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/jws/-/jws-4.0.1.tgz",
++      "integrity": "sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==",
++      "license": "MIT",
++      "dependencies": {
++        "jwa": "^2.0.1",
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/keyv": {
+       "version": "4.5.4",
+       "resolved": "https://registry.npmjs.org/keyv/-/keyv-4.5.4.tgz",
+@@ -7292,6 +7414,12 @@
+         "node": ">= 0.6"
+       }
+     },
++    "node_modules/minimalistic-assert": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/minimalistic-assert/-/minimalistic-assert-1.0.1.tgz",
++      "integrity": "sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A==",
++      "license": "ISC"
++    },
+     "node_modules/minimatch": {
+       "version": "3.1.5",
+       "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-3.1.5.tgz",
+@@ -7308,7 +7436,6 @@
+       "version": "1.2.8",
+       "resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz",
+       "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
+-      "dev": true,
+       "license": "MIT",
+       "funding": {
+         "url": "https://github.com/sponsors/ljharb"
+@@ -8657,6 +8784,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/safer-buffer": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/safer-buffer/-/safer-buffer-2.1.2.tgz",
++      "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==",
++      "license": "MIT"
++    },
+     "node_modules/sax": {
+       "version": "1.1.4",
+       "resolved": "https://registry.npmjs.org/sax/-/sax-1.1.4.tgz",
+@@ -10039,6 +10172,25 @@
+         "node": ">=10.13.0"
+       }
+     },
++    "node_modules/web-push": {
++      "version": "3.6.7",
++      "resolved": "https://registry.npmjs.org/web-push/-/web-push-3.6.7.tgz",
++      "integrity": "sha512-OpiIUe8cuGjrj3mMBFWY+e4MMIkW3SVT+7vEIjvD9kejGUypv8GPDf84JdPWskK8zMRIJ6xYGm+Kxr8YkPyA0A==",
++      "license": "MPL-2.0",
++      "dependencies": {
++        "asn1.js": "^5.3.0",
++        "http_ece": "1.2.0",
++        "https-proxy-agent": "^7.0.0",
++        "jws": "^4.0.0",
++        "minimist": "^1.2.5"
++      },
++      "bin": {
++        "web-push": "src/cli.js"
++      },
++      "engines": {
++        "node": ">= 16"
++      }
++    },
+     "node_modules/webidl-conversions": {
+       "version": "4.0.2",
+       "resolved": "https://registry.npmjs.org/webidl-conversions/-/webidl-conversions-4.0.2.tgz",
+diff --git a/package.json b/package.json
+index 8086671..a2022dc 100644
+--- a/package.json
++++ b/package.json
+@@ -32,6 +32,7 @@
+     "react": "^19.0.0",
+     "react-dom": "^19.0.0",
+     "tailwind-merge": "^3.0.2",
++    "web-push": "^3.6.7",
+     "zod": "^3.24.2"
+   },
+   "devDependencies": {
+@@ -40,6 +41,7 @@
+     "@types/node": "^22.13.5",
+     "@types/react": "^19.0.10",
+     "@types/react-dom": "^19.0.4",
++    "@types/web-push": "^3.6.4",
+     "eslint": "^9.21.0",
+     "eslint-config-next": "^15.2.0",
+     "postcss": "^8.5.3",
+diff --git a/services/analytics.ts b/services/analytics.ts
+index fb44f48..a11f2fe 100644
+--- a/services/analytics.ts
++++ b/services/analytics.ts
+@@ -31,7 +31,8 @@ export type AnalyticsEvent =
+   | "photo_push_sent"
+   | "photo_push_opened"
+   | "photo_push_viewed"
+-  | "photo_push_replied";
++  | "photo_push_replied"
++  | "photo_viewer_open";
+ 
+ export interface AnalyticsPayload {
+   event: AnalyticsEvent;
+diff --git a/services/photoPush/deliver.ts b/services/photoPush/deliver.ts
+index 7880eb2..8a87854 100644
+--- a/services/photoPush/deliver.ts
++++ b/services/photoPush/deliver.ts
+@@ -1,3 +1,4 @@
++import { messageVariation } from "@/lib/conversation/messageVariation";
+ import { personalizeCaption } from "@/lib/photoPush/personalize";
+ import { getPhotoScenario } from "@/lib/photoPush/scenarios";
+ import {
+@@ -5,7 +6,13 @@ import {
+   pickCaption,
+   type SelectedPhotoPush,
+ } from "@/lib/photoPush/selector";
++import { selectCatalogPhoto } from "@/lib/photoCatalog/selectPhoto";
++import {
++  albumLabelForCategory,
++  scenarioToCategory,
++} from "@/lib/photoCatalog/categories";
+ import { updateConversationLastMessage } from "@/lib/db/updateConversationPreview";
++import { sendWebPush, isWebPushConfigured } from "@/lib/push/webPush";
+ import { PHOTO_PUSH_DEDUP_LOOKBACK } from "./constants";
+ import { scheduleFollowupsForDelivery } from "./followup";
+ import type { SupabaseClient } from "@supabase/supabase-js";
+@@ -17,6 +24,7 @@ export async function selectPhotoPushContent(
+     characterId: string;
+     scenarioId: string;
+     displayName: string | null;
++    relationshipLevel?: number;
+   }
+ ): Promise<SelectedPhotoPush | null> {
+   const scenario = getPhotoScenario(params.scenarioId);
+@@ -28,7 +36,7 @@ export async function selectPhotoPushContent(
+ 
+   const { data: recent } = await supabase
+     .from("photo_push_deliveries")
+-    .select("caption, scenario_id")
++    .select("caption, scenario_id, asset_id")
+     .eq("user_id", params.userId)
+     .eq("character_id", params.characterId)
+     .gte("sent_at", since);
+@@ -37,19 +45,50 @@ export async function selectPhotoPushContent(
+     (recent ?? []).map((r) => (r.caption as string) ?? "")
+   );
+ 
+-  const caption = pickCaption(
++  // Fingerprints from recent asset ids (best-effort dedupe)
++  const recentAssetIds = (recent ?? [])
++    .map((r) => r.asset_id as string | null)
++    .filter(Boolean) as string[];
++  const excludeFingerprints = new Set<string>();
++  if (recentAssetIds.length) {
++    const { data: recentAssets } = await supabase
++      .from("character_photo_assets")
++      .select("hash_fingerprint")
++      .in("id", recentAssetIds);
++    for (const a of recentAssets ?? []) {
++      if (a.hash_fingerprint) excludeFingerprints.add(a.hash_fingerprint as string);
++    }
++  }
++
++  let caption = pickCaption(
+     scenario,
+     usedCaptions,
+     params.displayName,
+     personalizeCaption
+   );
+-  const assetUrl = defaultAssetUrl(params.characterId, scenario.emotion);
++  caption = messageVariation.finalize(
++    caption,
++    params.displayName,
++    Boolean(params.displayName),
++    params.characterId
++  );
++
++  const catalog = await selectCatalogPhoto(supabase, {
++    characterId: params.characterId,
++    scenarioId: params.scenarioId,
++    emotion: scenario.emotion,
++    excludeFingerprints,
++    minLevel: params.relationshipLevel ?? 1,
++  });
++
++  const assetUrl = catalog?.mediaUrl ?? defaultAssetUrl(params.characterId, scenario.emotion);
+ 
+   return {
+     scenario,
+     assetUrl,
+-    assetId: null,
++    assetId: catalog?.assetId ?? null,
+     caption,
++    category: catalog?.category ?? scenarioToCategory(params.scenarioId),
+   };
+ }
+ 
+@@ -63,6 +102,7 @@ export async function deliverPhotoPush(
+     scenarioId: string;
+     displayName: string | null;
+     isSpecialDay?: boolean;
++    relationshipLevel?: number;
+   }
+ ): Promise<{ deliveryId: string; messageId: string } | null> {
+   const content = await selectPhotoPushContent(supabase, {
+@@ -70,6 +110,7 @@ export async function deliverPhotoPush(
+     characterId: params.characterId,
+     scenarioId: params.scenarioId,
+     displayName: params.displayName,
++    relationshipLevel: params.relationshipLevel,
+   });
+   if (!content) return null;
+ 
+@@ -87,7 +128,10 @@ export async function deliverPhotoPush(
+       caption: content.caption,
+       media_url: content.assetUrl,
+       sent_at: now,
+-      metadata: { isSpecialDay: params.isSpecialDay ?? false },
++      metadata: {
++        isSpecialDay: params.isSpecialDay ?? false,
++        category: content.category ?? null,
++      },
+     })
+     .select("id")
+     .single();
+@@ -150,6 +194,23 @@ export async function deliverPhotoPush(
+     now
+   );
+ 
++  // Album entry (additive — ignore if migration not applied yet)
++  const category = content.category ?? scenarioToCategory(params.scenarioId);
++  const { error: albumErr } = await supabase.from("memory_album_items").insert({
++    user_id: params.userId,
++    character_id: params.characterId,
++    delivery_id: delivery.id,
++    media_url: content.assetUrl,
++    caption: content.caption,
++    category,
++    album_label: albumLabelForCategory(category),
++    sent_at: now,
++  });
++  if (albumErr) {
++    // Table may not exist until migration 011 is applied
++    console.warn("[photo-push] album insert skipped:", albumErr.message);
++  }
++
+   await supabase.from("session_logs").insert({
+     user_id: params.userId,
+     character_id: params.characterId,
+@@ -157,11 +218,78 @@ export async function deliverPhotoPush(
+     metadata: {
+       deliveryId: delivery.id,
+       scenarioId: content.scenario.id,
++      fromCatalog: Boolean(content.assetId),
+     },
+   });
+ 
++  // Optional OS notification (Web Push)
++  if (isWebPushConfigured()) {
++    await notifyWebPushSubscribers(supabase, {
++      userId: params.userId,
++      characterId: params.characterId,
++      conversationId: params.conversationId,
++      deliveryId: delivery.id as string,
++      caption: content.caption,
++      imageUrl: content.assetUrl,
++    }).catch(() => undefined);
++  }
++
+   return {
+     deliveryId: delivery.id as string,
+     messageId: msg.id as string,
+   };
+ }
++
++async function notifyWebPushSubscribers(
++  supabase: SupabaseClient,
++  params: {
++    userId: string;
++    characterId: string;
++    conversationId: string;
++    deliveryId: string;
++    caption: string;
++    imageUrl: string;
++  }
++) {
++  const { data: subs } = await supabase
++    .from("push_subscriptions")
++    .select("id, endpoint, keys")
++    .eq("user_id", params.userId)
++    .eq("platform", "web");
++
++  if (!subs?.length) return;
++
++  const deepLink = `/chat/${params.characterId}?conversationId=${params.conversationId}&photoPush=${params.deliveryId}`;
++
++  for (const sub of subs) {
++    const keys = (sub.keys ?? {}) as { p256dh?: string; auth?: string };
++    if (!keys.p256dh || !keys.auth) continue;
++
++    const result = await sendWebPush(
++      {
++        endpoint: sub.endpoint as string,
++        p256dh: keys.p256dh,
++        auth: keys.auth,
++      },
++      {
++        title: "",
++        body: params.caption,
++        imageUrl: params.imageUrl,
++        data: {
++          url: deepLink,
++          deliveryId: params.deliveryId,
++          characterId: params.characterId,
++        },
++      }
++    );
++
++    if (result.expired) {
++      await supabase.from("push_subscriptions").delete().eq("id", sub.id);
++    } else if (result.success) {
++      await supabase
++        .from("push_subscriptions")
++        .update({ last_used_at: new Date().toISOString() })
++        .eq("id", sub.id);
++    }
++  }
++}
+diff --git a/services/photoPush/runner.ts b/services/photoPush/runner.ts
+index 599fd3a..77f0d58 100644
+--- a/services/photoPush/runner.ts
++++ b/services/photoPush/runner.ts
+@@ -108,6 +108,13 @@ export async function runPhotoPushCron(
+       .eq("id", slot.user_id)
+       .maybeSingle();
+ 
++    const { data: stateRow } = await supabase
++      .from("user_character_states")
++      .select("relationship_level")
++      .eq("user_id", slot.user_id)
++      .eq("character_id", slot.character_id)
++      .maybeSingle();
++
+     const result = await deliverPhotoPush(supabase, {
+       userId: slot.user_id as string,
+       characterId: slot.character_id as string,
+@@ -116,6 +123,8 @@ export async function runPhotoPushCron(
+       scenarioId: slot.scenario_id as string,
+       displayName: (profileRow?.display_name as string | null) ?? null,
+       isSpecialDay: slot.is_special_day as boolean,
++      relationshipLevel:
++        (stateRow?.relationship_level as number | undefined) ?? 1,
+     });
+ 
+     if (result) delivered += 1;
+diff --git a/services/responsePostProcess.ts b/services/responsePostProcess.ts
+index aed3fd6..025a020 100644
+--- a/services/responsePostProcess.ts
++++ b/services/responsePostProcess.ts
+@@ -1,3 +1,4 @@
++import { polishCharacterMessage } from "@/lib/conversation/naturalConversation";
+ import type { ChatFollowUp } from "@/types/api";
+ 
+ const ELLIPSIS_PATTERN = /(?:\.{3,}|…+)/g;
+@@ -27,14 +28,20 @@ export function detectFollowUp(text: string): ChatFollowUp {
+   return "comment";
+ }
+ 
+-export function postProcessAssistantReply(text: string): {
++export function postProcessAssistantReply(
++  text: string,
++  opts?: { characterId?: string; userName?: string }
++): {
+   text: string;
+   follow_up: ChatFollowUp;
+ } {
+   const trimmedInput = text.trim();
+-  const normalized = limitEllipsis(
+-    stripParentheticalNarration(trimmedInput)
+-  );
++  let normalized = limitEllipsis(stripParentheticalNarration(trimmedInput));
++  // Natural conversation polish (ban AI phrases, length, emoji)
++  normalized = polishCharacterMessage(normalized, {
++    characterSlug: opts?.characterId,
++    userName: opts?.userName,
++  });
+   return {
+     text: normalized || trimmedInput || "잠깐만, 다시 말해줄게.",
+     follow_up: detectFollowUp(normalized || trimmedInput),
+diff --git a/supabase/migrations/011_photo_storage_bridge.sql b/supabase/migrations/011_photo_storage_bridge.sql
+new file mode 100644
+index 0000000..6a504d8
+--- /dev/null
++++ b/supabase/migrations/011_photo_storage_bridge.sql
+@@ -0,0 +1,50 @@
++-- Additive: Storage bridge fields + album + Web Push readiness
++-- Does NOT drop or rewrite existing photo_push / character_photo_assets tables.
++
++alter table public.character_photo_assets
++  add column if not exists public_url text,
++  add column if not exists category text,
++  add column if not exists is_active boolean not null default true,
++  add column if not exists quality_score numeric(4,2);
++
++create index if not exists idx_character_photo_assets_active_cat
++  on public.character_photo_assets (character_id, category, is_active)
++  where is_active = true;
++
++create index if not exists idx_character_photo_assets_active_emotion
++  on public.character_photo_assets (character_id, emotion, is_active)
++  where is_active = true;
++
++comment on column public.character_photo_assets.public_url is
++  'CDN or signed public URL published by ops Storage upload';
++comment on column public.character_photo_assets.category is
++  'Ops category slug (coffee, selfie, rain, …) for product selection';
++comment on column public.character_photo_assets.is_active is
++  'false = soft-hidden from product selectors (ops quality gate)';
++
++-- Memory album derived from delivered photos (product-facing)
++create table if not exists public.memory_album_items (
++  id uuid primary key default gen_random_uuid(),
++  user_id uuid not null references public.profiles(id) on delete cascade,
++  character_id text not null,
++  delivery_id uuid references public.photo_push_deliveries(id) on delete set null,
++  media_url text not null,
++  caption text,
++  category text not null default 'selfie',
++  album_label text not null default '추억',
++  sent_at timestamptz not null default now(),
++  created_at timestamptz not null default now()
++);
++
++create index if not exists idx_memory_album_user_char
++  on public.memory_album_items (user_id, character_id, sent_at desc);
++
++alter table public.memory_album_items enable row level security;
++
++create policy "memory_album_own"
++  on public.memory_album_items
++  for select using (auth.uid() = user_id);
++
++-- Expand push_subscriptions for VAPID keys shape already stored in jsonb
++comment on table public.push_subscriptions is
++  'Web / native push endpoints. keys jsonb: {p256dh, auth} for web.';
+-- 
+2.43.0
+
