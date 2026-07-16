@@ -1,8 +1,8 @@
 # PickMeTalk — 로컬 변경사항 백업 후 GitHub main 동기화
 # Windows에서 실행: powershell -ExecutionPolicy Bypass -File scripts/backup-local-before-sync.ps1
 
-$ProjectRoot = "C:\Users\user\ai_girlfriend_app"
-$BackupRoot  = "C:\Users\user\ai_girlfriend_app_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+$ProjectRoot = "C:\Users\user\pickmetalk-ops"
+$BackupRoot  = "C:\Users\user\pickmetalk-ops_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
 
 if (-not (Test-Path $ProjectRoot)) {
     Write-Error "프로젝트 경로 없음: $ProjectRoot"

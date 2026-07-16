@@ -1,4 +1,15 @@
-# PickMeTalk — 자연스러운 사진 푸시 시스템
+# PickMeTalk Ops (`pickmetalk-ops`)
+
+> Windows 운영 시스템 — Midjourney Production · Photo Library · QC · Catalog publish
+
+제품 앱은 **`pickmetalk`** (formerly `app_girl-friend`) 입니다.  
+이 저장소는 제품에 통째로 merge하지 않습니다. 연동: [docs/PRODUCT_OPS_BRIDGE.md](docs/PRODUCT_OPS_BRIDGE.md)
+
+로컬 권장 경로: `C:\Users\user\pickmetalk-ops`
+
+---
+
+# PickMeTalk — 자연스러운 사진 푸시 / 콘텐츠 생산 시스템
 
 > "와… 진짜 사람이 나를 기다려주는 것 같다."
 

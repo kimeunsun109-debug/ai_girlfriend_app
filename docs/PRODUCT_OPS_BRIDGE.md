@@ -1,9 +1,9 @@
 # Product ↔ Ops content bridge
 
-Ops owns **generation**. Product owns **delivery**.
+Ops (`pickmetalk-ops`) owns **generation**. Product (`pickmetalk`) owns **delivery**.
 
 ```
-Windows Ops (this repo)
+Windows Ops (this repo: pickmetalk-ops)
   mj:production / universe:watch / QC / face / thumbnail
         ↓
   scripts/publish-photo-to-product.ts  (or manual upsert)
@@ -11,7 +11,7 @@ Windows Ops (this repo)
   Supabase Storage bucket: character-photos
   Table: character_photo_assets  (shared product DB)
         ↓
-Product app_girl-friend
+Product pickmetalk
   selectCatalogPhoto → photo push cron → chat / album / web push
 ```
 
@@ -43,3 +43,12 @@ PRODUCT_SUPABASE_SERVICE_ROLE_KEY=
 PHOTO_STORAGE_BUCKET=character-photos
 PHOTO_CDN_BASE_URL=   # optional
 ```
+
+## Naming
+
+| Role | Folder / GitHub |
+|------|-----------------|
+| Product | `pickmetalk` |
+| Ops (this repo) | `pickmetalk-ops` |
+
+See product doc `docs/RENAME_PICKMETALK.md` after applying the product patch.

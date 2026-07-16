@@ -36,7 +36,7 @@ app.use('/library', (req, res) => {
 app.use('/universe', universeRouter);
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'pickmetalk-photo-push' });
+  res.json({ status: 'ok', service: 'pickmetalk-ops' });
 });
 
 app.use('/api/users', userRouter);

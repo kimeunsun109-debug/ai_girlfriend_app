@@ -1,0 +1,334 @@
+From 9ef1bac2ba0bf38670ce804291a68ce77c18203f Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Thu, 16 Jul 2026 05:43:08 +0000
+Subject: [PATCH] chore: rename branding to pickmetalk + Hobby-safe daily cron
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- vercel.json cron: */15 → 0 9 * * * (Vercel Hobby once/day limit)
+- package name ai-girlfriend-app → pickmetalk
+- docs: product=pickmetalk, ops=pickmetalk-ops; add RENAME_PICKMETALK.md
+- Fix outdated local path / repo URL references
+---
+ AGENTS.md                                     |  4 +-
+ README.md                                     |  4 +-
+ docs/ARCHITECTURE_PRODUCT_OPS.md              | 22 +++--
+ docs/CURSOR_CLOUD.md                          |  2 +-
+ docs/PHOTO_PUSH.md                            |  2 +-
+ docs/PHOTO_STORAGE_BRIDGE.md                  |  4 +-
+ docs/PROJECT_STRUCTURE.md                     |  2 +-
+ docs/RENAME_PICKMETALK.md                     | 85 +++++++++++++++++++
+ docs/VERCEL_DEPLOY.md                         |  2 +-
+ .../naturalConversation.config.ts             |  2 +-
+ lib/photoCatalog/selectPhoto.ts               |  2 +-
+ package-lock.json                             |  4 +-
+ package.json                                  |  2 +-
+ vercel.json                                   |  2 +-
+ 14 files changed, 118 insertions(+), 21 deletions(-)
+ create mode 100644 docs/RENAME_PICKMETALK.md
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 63f1e41..2353b3f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -2,7 +2,9 @@
+ 
+ ## Repo
+ 
+-- **App:** PickmeTalk AI girlfriend chat (`pickmetalk.com`)
++- **App:** PickmeTalk (`pickmetalk.com`)
++- **GitHub / local folder:** `pickmetalk` (formerly `app_girl-friend`)
++- **Ops companion:** `pickmetalk-ops` (formerly `ai_girlfriend_app`) — do not merge
+ - **Stack:** Next.js 15, Supabase, DeepSeek, Vercel
+ 
+ ## Start (Cloud)
+diff --git a/README.md b/README.md
+index 997d8ef..f6387a6 100644
+--- a/README.md
++++ b/README.md
+@@ -17,7 +17,7 @@
+ ### 1. 의존성 설치
+ 
+ ```bash
+-cd c:\Users\user\ai_girlfriend_app
++cd C:\Users\user\pickmetalk
+ npm install
+ ```
+ 
+@@ -112,7 +112,7 @@ npm start
+ 
+ ## Cursor Cloud에서 이어서 작업
+ 
+-1. [Cloud Agents 대시보드](https://cursor.com/dashboard/cloud-agents)에서 GitHub 저장소 `kimeunsun109-debug/app_girl-friend` 연결
++1. [Cloud Agents 대시보드](https://cursor.com/dashboard/cloud-agents)에서 GitHub 저장소 `kimeunsun109-debug/pickmetalk` 연결
+ 2. **Secrets**에 `.env.example` 항목 등록 (`DEEPSEEK_API_KEY`, Supabase URL/anon key 등)
+ 3. 저장소의 `.cursor/environment.json`이 `npm install` + `openpyxl` 설치를 자동 실행
+ 4. 상세 가이드는 루트 `AGENTS.md` 참고
+diff --git a/docs/ARCHITECTURE_PRODUCT_OPS.md b/docs/ARCHITECTURE_PRODUCT_OPS.md
+index 3c47214..48fcf00 100644
+--- a/docs/ARCHITECTURE_PRODUCT_OPS.md
++++ b/docs/ARCHITECTURE_PRODUCT_OPS.md
+@@ -2,10 +2,15 @@
+ 
+ ## Roles (do not merge repos)
+ 
+-| Repo | Role |
+-|------|------|
+-| **`app_girl-friend`** | Product — chat, auth, relationship, photo **delivery**, Vercel |
+-| **`ai_girlfriend_app`** | Ops — Midjourney production, Photo Library, QC, Windows automation |
++| Repo / folder | Role |
++|---------------|------|
++| **`pickmetalk`** (was `app_girl-friend`) | Product — chat, auth, relationship, photo **delivery**, Vercel |
++| **`pickmetalk-ops`** (was `ai_girlfriend_app`) | Ops — Midjourney production, Photo Library, QC, Windows automation |
++
++Local Windows paths (recommended):
++
++- Product: `C:\Users\user\pickmetalk`
++- Ops: `C:\Users\user\pickmetalk-ops`
+ 
+ ```
+ Ops produces content → Storage/CDN → Product consumes & pushes to users
+@@ -35,10 +40,15 @@ Express API, Prisma schema, batch dashboards.
+ 
+ Never drop existing product schema.
+ 
++## Cron (Vercel)
++
++- Hobby plan: **once per day** — `0 9 * * *` (09:00 UTC ≈ 18:00 KST) in `vercel.json`
++- Pro plan: can restore `*/15 * * * *` for tighter photo-push timing
++
+ ## Recommended next steps
+ 
+-1. Grant Cursor/GitHub App write access to `app_girl-friend` and land this branch as PR
+-2. Apply migrations `010` + `011` on Supabase
++1. Rename GitHub repos + local folders per `docs/RENAME_PICKMETALK.md`
++2. Apply migrations `010` + `011` on Supabase (if not already)
+ 3. Ops: publish first catalog batch to Storage + `character_photo_assets`
+ 4. Set `VAPID_*` + `CRON_SECRET` on Vercel
+ 5. Later: deeper Adaptive Personality DNA (optional) — product already has emotion/memory
+diff --git a/docs/CURSOR_CLOUD.md b/docs/CURSOR_CLOUD.md
+index 3f84fa9..bc34f40 100644
+--- a/docs/CURSOR_CLOUD.md
++++ b/docs/CURSOR_CLOUD.md
+@@ -2,7 +2,7 @@
+ 
+ ## 1. GitHub
+ 
+-이 저장소: `https://github.com/kimeunsun109-debug/app_girl-friend.git`
++이 저장소: `https://github.com/kimeunsun109-debug/pickmetalk.git`
+ 
+ Cloud Agent는 **main** 브랜치를 clone 합니다.
+ 
+diff --git a/docs/PHOTO_PUSH.md b/docs/PHOTO_PUSH.md
+index da5d4b1..a795474 100644
+--- a/docs/PHOTO_PUSH.md
++++ b/docs/PHOTO_PUSH.md
+@@ -48,7 +48,7 @@ app/api/photo-push/[deliveryId]/track/route.ts
+ 
+ ## Cron (Vercel)
+ 
+-- `vercel.json` → `*/15 * * * *`
++- `vercel.json` → `0 9 * * *` (Hobby: once/day, 09:00 UTC ≈ 18:00 KST). Pro can use `*/15 * * * *`.
+ - Env: `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`
+ 
+ ## 사진 에셋 (~1000장/캐릭터)
+diff --git a/docs/PHOTO_STORAGE_BRIDGE.md b/docs/PHOTO_STORAGE_BRIDGE.md
+index 56ea87a..580c3bb 100644
+--- a/docs/PHOTO_STORAGE_BRIDGE.md
++++ b/docs/PHOTO_STORAGE_BRIDGE.md
+@@ -1,7 +1,7 @@
+ # Photo Storage Bridge
+ 
+-Ops (`ai_girlfriend_app`) **generates** photos.  
+-Product (`app_girl-friend`) **only reads & delivers** them.
++Ops (`pickmetalk-ops`, formerly `ai_girlfriend_app`) **generates** photos.  
++Product (`pickmetalk`, formerly `app_girl-friend`) **only reads & delivers** them.
+ 
+ ```
+ [Windows Ops]
+diff --git a/docs/PROJECT_STRUCTURE.md b/docs/PROJECT_STRUCTURE.md
+index 6c470a1..26daa67 100644
+--- a/docs/PROJECT_STRUCTURE.md
++++ b/docs/PROJECT_STRUCTURE.md
+@@ -1,7 +1,7 @@
+ # 프로젝트 구조
+ 
+ ```
+-ai_girlfriend_app/
++pickmetalk/
+ ├── app/                          # Next.js App Router
+ │   ├── layout.tsx, page.tsx      # 루트·랜딩
+ │   ├── globals.css
+diff --git a/docs/RENAME_PICKMETALK.md b/docs/RENAME_PICKMETALK.md
+new file mode 100644
+index 0000000..6c2dfc5
+--- /dev/null
++++ b/docs/RENAME_PICKMETALK.md
+@@ -0,0 +1,85 @@
++# Rename guide — clear PickMeTalk names
++
++Old names were easy to mix up. Use these going forward:
++
++| Role | Old GitHub / folder | **New name** |
++|------|---------------------|--------------|
++| Product (this app) | `app_girl-friend` | **`pickmetalk`** |
++| Ops (Windows MJ) | `ai_girlfriend_app` | **`pickmetalk-ops`** |
++
++Brand / Android id stay the same: `com.pickmetalk.app`, `pickmetalk.com`.
++
++---
++
++## A. Rename GitHub repositories (you do this in the browser)
++
++### 1) Product
++1. Open https://github.com/kimeunsun109-debug/app_girl-friend/settings
++2. Scroll to **Repository name** → set `pickmetalk` → **Rename**
++3. GitHub keeps redirects from the old URL for git/clone for a while
++
++### 2) Ops
++1. Open https://github.com/kimeunsun109-debug/ai_girlfriend_app/settings
++2. Rename to `pickmetalk-ops` → **Rename**
++
++### 3) After rename — reconnect
++- **Vercel**: Project → Settings → Git → confirm repo is `pickmetalk` (usually auto)
++- **Cursor Cloud Agents**: re-select `pickmetalk` / `pickmetalk-ops` if the agent environment still points at old names
++- **Supabase**: no change (project is separate from GitHub name)
++
++---
++
++## B. Rename local Windows folders (PowerShell)
++
++```powershell
++# Close Cursor/VS Code windows that have these folders open first.
++
++# Product
++Rename-Item -Path "C:\Users\user\app_girl-friend" -NewName "pickmetalk"
++cd C:\Users\user\pickmetalk
++git remote set-url origin https://github.com/kimeunsun109-debug/pickmetalk.git
++git remote -v
++
++# Ops (if you have a local clone under the old name)
++if (Test-Path "C:\Users\user\ai_girlfriend_app") {
++  Rename-Item -Path "C:\Users\user\ai_girlfriend_app" -NewName "pickmetalk-ops"
++  cd C:\Users\user\pickmetalk-ops
++  git remote set-url origin https://github.com/kimeunsun109-debug/pickmetalk-ops.git
++  git remote -v
++}
++```
++
++If ops was never cloned:
++
++```powershell
++cd C:\Users\user
++git clone https://github.com/kimeunsun109-debug/pickmetalk-ops.git
++```
++
++---
++
++## C. What breaks if you only rename the folder (not GitHub)
++
++| Thing | Effect |
++|-------|--------|
++| `git push` / `git pull` | Still works (remote URL unchanged) |
++| Cursor / IDE recent paths | Need to **File → Open Folder** on the new path |
++| Shortcuts / Task Scheduler | Update any `.bat` / scheduled tasks pointing at old path |
++| Ops `backup-local-before-sync.ps1` | Updated to `C:\Users\user\pickmetalk-ops` |
++
++## D. What breaks if you rename GitHub but not local remotes
++
++`git push` fails until:
++
++```powershell
++git remote set-url origin https://github.com/kimeunsun109-debug/pickmetalk.git
++```
++
++---
++
++## E. npm package names (already updated in code)
++
++- Product `package.json` → `"name": "pickmetalk"`
++- Ops `package.json` → `"name": "pickmetalk-ops"`
++
++These do **not** require republishing; they are private apps.
+diff --git a/docs/VERCEL_DEPLOY.md b/docs/VERCEL_DEPLOY.md
+index b26b56b..ba78cd1 100644
+--- a/docs/VERCEL_DEPLOY.md
++++ b/docs/VERCEL_DEPLOY.md
+@@ -20,7 +20,7 @@
+ Vercel 대시보드에 **Connect Git**이 보이면 아직 GitHub 연동이 안 된 상태입니다.
+ 
+ 1. [Project Settings → Git](https://vercel.com/kimeunsun-s-projects/app-girl-friend/settings/git)
+-2. **Connect Git Repository** → `kimeunsun109-debug/app_girl-friend`
++2. **Connect Git Repository** → `kimeunsun109-debug/pickmetalk`
+ 3. **Production Branch**: `main`
+ 4. **Automatically deploy**: Enabled
+ 
+diff --git a/lib/conversation/naturalConversation.config.ts b/lib/conversation/naturalConversation.config.ts
+index 3acca7b..885ce0f 100644
+--- a/lib/conversation/naturalConversation.config.ts
++++ b/lib/conversation/naturalConversation.config.ts
+@@ -1,5 +1,5 @@
+ /**
+- * Natural Conversation rules — ported from ops (ai_girlfriend_app).
++ * Natural Conversation rules — ported from ops (`pickmetalk-ops`).
+  * Chat-facing only: ban AI-ish phrases, limit length/emoji, intent reactions.
+  * Character slug note: product uses `yoonseo`; ops used `yunseo`.
+  */
+diff --git a/lib/photoCatalog/selectPhoto.ts b/lib/photoCatalog/selectPhoto.ts
+index 6f5a54a..6966688 100644
+--- a/lib/photoCatalog/selectPhoto.ts
++++ b/lib/photoCatalog/selectPhoto.ts
+@@ -1,6 +1,6 @@
+ /**
+  * Storage bridge — product reads ready photos from Supabase Storage / CDN.
+- * Ops (ai_girlfriend_app) owns generation; product never runs Midjourney.
++ * Ops (`pickmetalk-ops`) owns generation; product never runs Midjourney.
+  */
+ 
+ import type { SupabaseClient } from "@supabase/supabase-js";
+diff --git a/package-lock.json b/package-lock.json
+index efccb4c..dc272d4 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,11 +1,11 @@
+ {
+-  "name": "ai-girlfriend-app",
++  "name": "pickmetalk",
+   "version": "0.1.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+-      "name": "ai-girlfriend-app",
++      "name": "pickmetalk",
+       "version": "0.1.0",
+       "dependencies": {
+         "@capacitor/android": "^8.4.0",
+diff --git a/package.json b/package.json
+index a2022dc..37a6a1b 100644
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "ai-girlfriend-app",
++  "name": "pickmetalk",
+   "version": "0.1.0",
+   "private": true,
+   "scripts": {
+diff --git a/vercel.json b/vercel.json
+index b6f18a2..6192c45 100644
+--- a/vercel.json
++++ b/vercel.json
+@@ -10,7 +10,7 @@
+   "crons": [
+     {
+       "path": "/api/cron/photo-push",
+-      "schedule": "*/15 * * * *"
++      "schedule": "0 9 * * *"
+     }
+   ]
+ }
+-- 
+2.43.0
+

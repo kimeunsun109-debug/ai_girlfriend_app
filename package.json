@@ -1,8 +1,8 @@
 {
-  "name": "pickmetalk-photo-push",
+  "name": "pickmetalk-ops",
   "version": "1.0.0",
   "type": "module",
-  "description": "PickMeTalk 자연스러운 사진 푸시 시스템",
+  "description": "PickMeTalk Ops — Midjourney / Photo Library / Windows production",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
