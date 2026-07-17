@@ -33,6 +33,7 @@
     "mj:phase1": "PICKMETALK_RUNTIME=production tsx scripts/mj-phase1-start.ts",
     "mj:yuna-test": "PICKMETALK_RUNTIME=test MJ_PRODUCTION_MODE=test tsx scripts/mj-yuna-test-20.ts",
     "mj:characters-manifest": "PICKMETALK_RUNTIME=production tsx scripts/mj-characters-manifest.ts",
+    "mj:auto": "PICKMETALK_RUNTIME=production tsx scripts/mj-auto-generate.ts",
     "photos:publish-product": "tsx scripts/publish-photo-to-product.ts",
     "test": "vitest run",
     "test:watch": "vitest",

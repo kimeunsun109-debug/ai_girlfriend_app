@@ -17,3 +17,5 @@ export {
   type ProductionReadyReport,
   type ReadinessCheck,
 } from './production-ready.js';
+export { mjProxyClient, MjProxyClient, stripImaginePrefix } from './mj-proxy-client.js';
+export { mjAutoGenerator, MjAutoGenerator } from './auto-generator.js';

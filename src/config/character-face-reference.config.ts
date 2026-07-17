@@ -3,6 +3,7 @@
  * 원본: docs/캐릭터예시_사진.md + character-specs.ts
  *
  * 모든 MJ 프롬프트에 동일하게 포함. 얼굴/헤어는 절대 변경하지 않음.
+ * 운영 자동화: --relax + --cref (캐릭터 레퍼런스) 강제.
  */
 import type { CharacterVisualSpec } from '../data/character-specs.js';
 import { getCharacterSpecBySlug } from '../data/character-specs.js';
@@ -45,6 +46,7 @@ function buildIdentityFromSpec(spec: CharacterVisualSpec): CharacterFaceIdentity
     `${identity.skinTone}, realistic skin texture`,
     identity.baseHairstyle,
     'NEVER change face shape, eye shape, or bone structure',
+    'identical facial identity across all images',
   ].join(', ');
 
   const characterSpecificNegative: string[] = [];
@@ -84,19 +86,35 @@ export function getCharacterFaceIdentity(slug: string): CharacterFaceIdentity | 
   return CHARACTER_FACE_IDENTITIES[slug];
 }
 
-export function getMjSuffix(_slug?: string): string {
-  return MJ_SUFFIX_BASE;
+/** Character reference image URL for Midjourney --cref (face lock). Env: MJ_CREF_YUNA=https://... */
+export function getCharacterCrefUrl(slug: string): string | null {
+  const key = `MJ_CREF_${slug.toUpperCase()}`;
+  const url = process.env[key]?.trim() || process.env.MJ_CREF_URL?.trim();
+  return url || null;
 }
 
-/** Build full Midjourney /imagine command with identity lock */
+export function getMjSuffix(_slug?: string): string {
+  const relax =
+    process.env.MJ_FORCE_RELAX === '0' || process.env.MJ_FORCE_RELAX === 'false'
+      ? ''
+      : ' --relax';
+  return `${MJ_SUFFIX_BASE}${relax}`;
+}
+
+/** Build full Midjourney /imagine command with identity lock + optional --cref */
 export function buildCharacterMjCommand(
   slug: string,
   scenePrompt: string,
   negativePrompt: string
 ): string {
   const identity = getCharacterFaceIdentity(slug);
+  const suffix = getMjSuffix(slug);
+  const cref = getCharacterCrefUrl(slug);
+  const cw = Number(process.env.MJ_CREF_WEIGHT ?? 100);
+  const crefPart = cref ? ` --cref ${cref} --cw ${Number.isFinite(cw) ? cw : 100}` : '';
+
   if (!identity) {
-    return `/imagine prompt: ${scenePrompt} --no ${negativePrompt} ${MJ_SUFFIX_BASE}`;
+    return `/imagine prompt: ${scenePrompt} --no ${negativePrompt} ${suffix}${crefPart}`;
   }
 
   const fullPrompt = [
@@ -104,7 +122,8 @@ export function buildCharacterMjCommand(
     scenePrompt,
     `natural smartphone selfie, photorealistic Korean woman ${identity.name}, same face as reference`,
     'Shot on iPhone, casual daily life, natural lighting, no AI beauty filter',
+    'KEEP THE EXACT SAME FACE — do not alter identity',
   ].join('. ');
 
-  return `/imagine prompt: ${fullPrompt} --no ${identity.identityNegative}, ${negativePrompt} ${MJ_SUFFIX_BASE}`;
+  return `/imagine prompt: ${fullPrompt} --no ${identity.identityNegative}, ${negativePrompt} ${suffix}${crefPart}`;
 }
