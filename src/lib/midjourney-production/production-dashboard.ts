@@ -1,6 +1,7 @@
 import { getProductionDb, type CharacterProgress } from './production-db.js';
 import { productionQueue } from './production-queue.js';
 import { promptSelector } from './prompt-selector.js';
+import { productionStats } from './production-stats.js';
 
 export interface DashboardSnapshot {
   runId: string | null;
@@ -83,6 +84,24 @@ export class ProductionDashboard {
       lines.push(
         `${p.character.padEnd(8)} ${bar}  ${p.completed} / ${p.target}${extra}${regen}`
       );
+
+      const stats = productionStats
+        .collect()
+        .characters.find((c) => c.character === p.character);
+      if (stats && stats.photoCount > 0) {
+        lines.push(
+          `         ACTIVE ${stats.approvedCount}  REVIEW ${stats.reviewCount}  REJECT ${stats.rejectedCount}`
+        );
+        const face =
+          stats.avgFaceSimilarity != null
+            ? `Average Face ${stats.avgFaceSimilarity}%`
+            : 'Average Face n/a';
+        const qual =
+          stats.avgQualityScore != null
+            ? `Average Quality ${stats.avgQualityScore}`
+            : 'Average Quality n/a';
+        lines.push(`         ${face}  ${qual}`);
+      }
     }
 
     lines.push('');
