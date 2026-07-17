@@ -13,7 +13,12 @@ async function main() {
   bootstrapPhotoLibrary();
 
   const countArg = process.argv.find((a) => a.startsWith('--count='));
-  const count = countArg ? Number(countArg.split('=')[1]) : Number(process.env.MJ_PHOTOS_PER_CHARACTER ?? 20);
+  const charArg = process.argv.find((a) => a.startsWith('--character='));
+  const count = countArg
+    ? Number(countArg.split('=')[1])
+    : Number(process.env.MJ_PHOTOS_PER_CHARACTER ?? 150);
+  const character = charArg?.split('=')[1];
+  const characterOrder = character ? [character] : undefined;
 
   const existing = productionQueue.getActiveRun();
   if (existing && !process.argv.includes('--new')) {
@@ -22,8 +27,12 @@ async function main() {
     return;
   }
 
-  console.log(`Creating production queue: ${count} photos × 5 characters\n`);
-  const run = productionQueue.createRun({ photosPerCharacter: count });
+  console.log(
+    character
+      ? `Creating production queue: ${count} photos × ${character}\n`
+      : `Creating production queue: ${count} photos × 5 characters\n`
+  );
+  const run = productionQueue.createRun({ photosPerCharacter: count, characterOrder });
   const first = productionQueue.activateNextJob(run.id);
 
   console.log(`Run ID: ${run.id}`);

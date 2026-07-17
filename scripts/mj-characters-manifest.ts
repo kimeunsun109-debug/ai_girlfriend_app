@@ -1,11 +1,13 @@
 #!/usr/bin/env npx tsx
 /**
- * 5캐릭터 MJ Production Manifest 생성
+ * Character Midjourney Manifest 생성
+ *
+ * Per-file Discord paste targets (Discord ~2000 char limit):
+ *   data/photo-universe/characters-manifest/yuna/YUNA_001.md
  *
  * npm run mj:characters-manifest
- * npm run mj:characters-manifest -- --count=20
- * npm run mj:characters-manifest -- --character=narin
- * npm run mj:characters-manifest -- --new
+ * npm run mj:characters-manifest -- --count=150 --character=yuna --new
+ * npm run mj:characters-manifest -- --count=150 --new
  */
 import 'dotenv/config';
 import { mkdirSync, writeFileSync } from 'fs';
@@ -26,6 +28,8 @@ import { MJ_CHARACTER_ORDER } from '../src/config/midjourney-production.config.j
 import { PHOTO_UNIVERSE_DATA_ROOT } from '../src/config/photo-universe.config.js';
 
 const OUTPUT_ROOT = join(PHOTO_UNIVERSE_DATA_ROOT, 'characters-manifest');
+/** Discord message hard limit — keep /imagine paste under this */
+const DISCORD_SAFE_CHARS = 1900;
 
 function compactSceneFromPrompt(fullPrompt: string): string {
   const sceneMatch = fullPrompt.match(/## Scene[^\n]*\n([\s\S]*?)(?=\n## |$)/);
@@ -40,20 +44,34 @@ function compactSceneFromPrompt(fullPrompt: string): string {
   return visualMatch?.[1]?.trim() ?? fullPrompt.slice(0, 180);
 }
 
+function fitDiscordCommand(cmd: string): string {
+  if (cmd.length <= DISCORD_SAFE_CHARS) return cmd;
+  // Truncate inside prompt body before --no / suffixes when possible
+  const marker = ' --no ';
+  const idx = cmd.lastIndexOf(marker);
+  if (idx > 100) {
+    const head = cmd.slice(0, idx);
+    const tail = cmd.slice(idx);
+    const budget = DISCORD_SAFE_CHARS - tail.length - 3;
+    if (budget > 80) return `${head.slice(0, budget)}...${tail}`;
+  }
+  return `${cmd.slice(0, DISCORD_SAFE_CHARS - 3)}...`;
+}
+
 function parseArgs() {
   const countArg = process.argv.find((a) => a.startsWith('--count='));
   const charArg = process.argv.find((a) => a.startsWith('--character='));
-  const count = countArg ? Number(countArg.split('=')[1]) : Number(process.env.MJ_PHOTOS_PER_CHARACTER ?? 20);
+  const count = countArg
+    ? Number(countArg.split('=')[1])
+    : Number(process.env.MJ_PHOTOS_PER_CHARACTER ?? 150);
   const character = charArg?.split('=')[1];
-  const characterOrder = character
-    ? [character]
-    : [...MJ_CHARACTER_ORDER];
+  const characterOrder = character ? [character] : [...MJ_CHARACTER_ORDER];
   return { count, characterOrder, forceNew: process.argv.includes('--new') };
 }
 
 async function main() {
   console.log('╔══════════════════════════════════════════╗');
-  console.log('║  PickMeTalk 5-Character MJ Manifest      ║');
+  console.log('║  PickMeTalk Character MJ Manifest        ║');
   console.log('╚══════════════════════════════════════════╝\n');
 
   bootstrapPhotoLibrary();
@@ -69,12 +87,11 @@ async function main() {
     const identity = getCharacterFaceIdentity(slug);
     if (!identity) continue;
     console.log(`── ${identity.name} (${slug}) ──`);
-    console.log(`   Identity: ${identity.identityPrompt.slice(0, 80)}…`);
     console.log(`   Catalog unused: ${promptSelector.remainingCount(slug)} prompts\n`);
   }
 
   if (productionQueue.getActiveRun() && !forceNew) {
-    console.log('Active run exists — use --new to create fresh batch\n');
+    console.log('Active run exists — reusing (pass --new for a fresh batch)\n');
   } else {
     productionQueue.createRun({ characterOrder, photosPerCharacter: count });
   }
@@ -94,30 +111,45 @@ async function main() {
     character: string;
     name: string;
     count: number;
-    manifestPath: string;
-    commandsPath: string;
+    manifestDir: string;
+    fileCount: number;
   }> = [];
+
+  let totalMdFiles = 0;
 
   for (const slug of characterOrder) {
     const charJobs = byCharacter[slug] ?? [];
     const identity = getCharacterFaceIdentity(slug);
     if (!identity || charJobs.length === 0) continue;
 
-    const enriched = charJobs.map((j, i) => ({
-      index: i + 1,
-      scenario: j.folderSlug,
-      promptId: j.promptId,
-      targetFolder: j.targetFolder,
-      midjourneyCommand: buildCharacterMjCommand(
+    const charDir = join(OUTPUT_ROOT, slug);
+    const individualDir = join(charDir, 'discord');
+    mkdirSync(individualDir, { recursive: true });
+
+    const prefix = slug.toUpperCase();
+    const enriched = charJobs.map((j, i) => {
+      const raw = buildCharacterMjCommand(
         slug,
         compactSceneFromPrompt(j.prompt),
         j.negativePrompt ?? ''
-      ),
-      promptPreview: j.prompt.slice(0, 120),
-    }));
-
-    const charDir = join(OUTPUT_ROOT, slug);
-    mkdirSync(charDir, { recursive: true });
+      );
+      const midjourneyCommand = fitDiscordCommand(raw);
+      const index = i + 1;
+      const pad = String(index).padStart(3, '0');
+      const fileName = `${prefix}_${pad}.md`;
+      // Discord paste file: /imagine command only
+      writeFileSync(join(individualDir, fileName), `${midjourneyCommand}\n`, 'utf-8');
+      totalMdFiles += 1;
+      return {
+        index,
+        fileName,
+        scenario: j.folderSlug,
+        promptId: j.promptId,
+        targetFolder: j.targetFolder,
+        midjourneyCommand,
+        chars: midjourneyCommand.length,
+      };
+    });
 
     const manifestPath = join(charDir, `${slug}-manifest.json`);
     writeFileSync(
@@ -137,41 +169,47 @@ async function main() {
       )
     );
 
-    const md: string[] = [
-      `# ${identity.name} (${slug}) Midjourney Commands`,
+    const indexMd: string[] = [
+      `# ${identity.name} (${slug}) — Discord Manifest Index`,
       '',
       `**Count:** ${enriched.length} | **Run:** ${run.id.slice(0, 8)}…`,
       '',
-      '## Identity Lock',
+      'Paste each `discord/*.md` file contents into Discord (one /imagine per message).',
       '',
-      identity.identityPrompt,
+      '| # | File | Category | Chars | Save after download |',
+      '|---|------|----------|-------|---------------------|',
+    ];
+    for (const j of enriched) {
+      indexMd.push(
+        `| ${j.index} | \`${j.fileName}\` | ${j.scenario} | ${j.chars} | \`${j.targetFolder}\` |`
+      );
+    }
+    const indexPath = join(charDir, `${prefix}_INDEX.md`);
+    writeFileSync(indexPath, indexMd.join('\n') + '\n');
+
+    // Combined commands (optional bulk view)
+    const combined: string[] = [
+      `# ${identity.name} — all /imagine commands`,
+      '',
+      'Prefer individual files in `discord/` for Discord length limits.',
       '',
     ];
     for (const j of enriched) {
-      md.push(
-        `## ${j.index}. ${j.scenario}`,
-        `**저장:** \`${j.targetFolder}\``,
-        '',
-        '```',
-        j.midjourneyCommand,
-        '```',
-        ''
-      );
+      combined.push(`## ${j.fileName}`, '', '```', j.midjourneyCommand, '```', '');
     }
-    const commandsPath = join(charDir, `${slug.toUpperCase()}_MJ_COMMANDS.md`);
-    writeFileSync(commandsPath, md.join('\n'));
+    writeFileSync(join(charDir, `${prefix}_MJ_COMMANDS.md`), combined.join('\n'));
 
     manifestSummary.push({
       character: slug,
       name: identity.name,
       count: enriched.length,
-      manifestPath,
-      commandsPath,
+      manifestDir: individualDir,
+      fileCount: enriched.length,
     });
 
-    console.log(`✓ ${identity.name}: ${enriched.length} jobs`);
-    console.log(`  ${manifestPath}`);
-    console.log(`  ${commandsPath}\n`);
+    console.log(`✓ ${identity.name}: ${enriched.length} jobs → ${individualDir}`);
+    console.log(`  ${prefix}_001.md … ${prefix}_${String(enriched.length).padStart(3, '0')}.md`);
+    console.log(`  Index: ${indexPath}\n`);
   }
 
   const summaryPath = join(OUTPUT_ROOT, 'all-characters-summary.json');
@@ -183,6 +221,7 @@ async function main() {
         photosPerCharacter: count,
         characterOrder,
         totalJobs: allJobs.length,
+        totalManifestFiles: totalMdFiles,
         createdAt: new Date().toISOString(),
         characters: manifestSummary,
       },
@@ -193,9 +232,12 @@ async function main() {
 
   productionQueue.activateNextJob(run.id);
   console.log(productionDashboard.renderConsole());
-  console.log(`\n✓ Summary: ${summaryPath}`);
-  console.log('\n💡 Discord MJ로 생성 후 Downloads/PickMeTalk_MJ 에 저장');
-  console.log('💡 Ingest: npm run mj:production');
+  console.log(`\n✓ Queue jobs: ${allJobs.length}`);
+  console.log(`✓ Manifest files: ${totalMdFiles}`);
+  console.log(`✓ Summary: ${summaryPath}`);
+  console.log('\n💡 Discord: open discord/*.md → copy /imagine → paste');
+  console.log('💡 Save MJ downloads to: Downloads\\PickMeTalk_MJ');
+  console.log('💡 Watch: npm run mj:production');
 }
 
 main()

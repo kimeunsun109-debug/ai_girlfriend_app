@@ -30,13 +30,40 @@ MJ_PHOTOS_PER_CHARACTER=150
 MJ_IMPORT_WATCH_FOLDER=C:/Users/user/Downloads/PickMeTalk_MJ
 ```
 
-## 1. Photo Library 생성
+## Phase 1 시작 (Yuna 150 권장)
+
+폴더가 `ai_girlfriend_app` 이면 먼저 rename 하거나 그 경로를 사용:
 
 ```powershell
+# Ops 폴더로 이동 (둘 중 하나)
 cd C:\Users\user\pickmetalk-ops
+# 또는: cd C:\Users\user\ai_girlfriend_app
+
+git pull origin main
 npm install
-npm run mj:init
+
+# 원클릭 Phase 1 (Yuna × 150 + Manifest + Watch)
+npm run mj:phase1
+
+# 5명 전부 750장
+# npm run mj:phase1 -- --all
+
+# Queue+Manifest만 (Watch는 나중에)
+# npm run mj:phase1 -- --no-watch
 ```
+
+수동 단계:
+
+```powershell
+npm run mj:init
+npm run mj:ready -- --bootstrap
+npm run mj:characters-manifest -- --count=150 --character=yuna --new
+# Discord: data\photo-universe\characters-manifest\yuna\discord\YUNA_001.md …
+npm run mj:production
+```
+
+Manifest 파일: `YUNA_001.md` … `YUNA_150.md` — 내용이 `/imagine …` 한 줄만 (Discord 붙여넣기용).
+
 
 자동 생성:
 
