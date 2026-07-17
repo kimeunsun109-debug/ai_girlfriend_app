@@ -1,0 +1,132 @@
+From 16b94b50804d593b851858281485e868bb8ed102 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 17 Jul 2026 05:31:22 +0000
+Subject: [PATCH] fix: skip kickline xlsx sync on Vercel without openpyxl
+
+- Exit early on VERCEL when committed master.json exists (no warn/traceback)
+- Probe openpyxl before running Python; fall back to committed JSON on CI
+- Handle missing openpyxl in sync_kicklines_from_xlsx.py without ImportError spam
+---
+ scripts/run_sync_kicklines.mjs      | 60 ++++++++++++++++++++---------
+ scripts/sync_kicklines_from_xlsx.py | 12 +++++-
+ 2 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/scripts/run_sync_kicklines.mjs b/scripts/run_sync_kicklines.mjs
+index eb2ef25..5cc41f4 100644
+--- a/scripts/run_sync_kicklines.mjs
++++ b/scripts/run_sync_kicklines.mjs
+@@ -1,6 +1,6 @@
+ /**
+- * Kickline sync runner — works on Vercel (Node-only) and local dev (Python + openpyxl).
+- * If python is unavailable, keeps the committed data/kickLines/master.json.
++ * Kickline sync runner — Vercel/CI uses committed data/kickLines/master.json.
++ * Local dev with 킥문장_마스터DB.xlsx + Python openpyxl regenerates master.json.
+  */
+ import { spawnSync } from "node:child_process";
+ import { existsSync } from "node:fs";
+@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
+ 
+ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+ const masterJson = path.join(root, "data", "kickLines", "master.json");
++const xlsxPath = path.join(root, "킥문장_마스터DB.xlsx");
+ const pyScript = path.join(root, "scripts", "sync_kicklines_from_xlsx.py");
+ 
+ function findPython() {
+@@ -19,29 +20,52 @@ function findPython() {
+   return null;
+ }
+ 
++function hasOpenpyxl(python) {
++  const probe = spawnSync(python, ["-c", "import openpyxl"], {
++    encoding: "utf8",
++    stdio: "pipe",
++  });
++  return probe.status === 0;
++}
++
++function useCommittedMaster(reason) {
++  if (!existsSync(masterJson)) return false;
++  if (!process.env.VERCEL && !process.env.CI) {
++    console.log(`skip: ${reason}, using ${path.relative(root, masterJson)}`);
++  }
++  return true;
++}
++
++// Vercel never ships the xlsx workbook — committed JSON is the build source of truth.
++if (process.env.VERCEL === "1") {
++  if (existsSync(masterJson)) process.exit(0);
++  console.error("sync:kicklines failed: master.json missing on Vercel");
++  process.exit(1);
++}
++
++if (!existsSync(xlsxPath)) {
++  if (useCommittedMaster(`${path.basename(xlsxPath)} not found`)) process.exit(0);
++  console.error(`sync:kicklines failed: missing ${path.basename(xlsxPath)} and master.json`);
++  process.exit(1);
++}
++
+ const python = findPython();
+ if (!python) {
+-  if (existsSync(masterJson)) {
+-    console.log(
+-      `skip: python not found, using existing ${path.relative(root, masterJson)}`
+-    );
+-    process.exit(0);
+-  }
+-  console.error(
+-    "sync:kicklines failed: python not found and no committed master.json"
+-  );
++  if (useCommittedMaster("python not found")) process.exit(0);
++  console.error("sync:kicklines failed: python not found and no committed master.json");
+   process.exit(1);
+ }
+ 
+-const result = spawnSync(python, [pyScript], { stdio: "inherit", cwd: root });
+-if (result.status === 0) {
+-  process.exit(0);
++if (!hasOpenpyxl(python)) {
++  if (useCommittedMaster("openpyxl not installed")) process.exit(0);
++  console.error("sync:kicklines failed: openpyxl not installed and no committed master.json");
++  process.exit(1);
+ }
+ 
+-if (existsSync(masterJson)) {
+-  console.warn(
+-    `warn: kickline sync failed (exit ${result.status ?? 1}), using committed ${path.relative(root, masterJson)}`
+-  );
++const result = spawnSync(python, [pyScript], { stdio: "inherit", cwd: root });
++if (result.status === 0) process.exit(0);
++
++if (useCommittedMaster(`kickline sync failed (exit ${result.status ?? 1})`)) {
+   process.exit(0);
+ }
+ 
+diff --git a/scripts/sync_kicklines_from_xlsx.py b/scripts/sync_kicklines_from_xlsx.py
+index 46fe2ff..c85dff0 100644
+--- a/scripts/sync_kicklines_from_xlsx.py
++++ b/scripts/sync_kicklines_from_xlsx.py
+@@ -1,10 +1,20 @@
+ from __future__ import annotations
+ 
+ import json
++import sys
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+-from openpyxl import load_workbook
++try:
++    from openpyxl import load_workbook
++except ImportError:
++    ROOT = Path(__file__).resolve().parents[1]
++    OUT_PATH = ROOT / "data" / "kickLines" / "master.json"
++    if OUT_PATH.exists():
++        print(f"skip: openpyxl not installed, using existing {OUT_PATH.name}")
++        sys.exit(0)
++    print("error: openpyxl not installed and no committed master.json", file=sys.stderr)
++    sys.exit(1)
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+ XLSX_PATH = ROOT / "킥문장_마스터DB.xlsx"
+-- 
+2.43.0
+
