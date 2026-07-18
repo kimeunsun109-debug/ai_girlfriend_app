@@ -25,9 +25,10 @@ Midjourney
 
 ## Yuna-first 운영 (Windows)
 
-작업 디렉터리: `C:\Users\user\pickmetalk-ops`
+작업 디렉터리: `C:\Users\user\pickmetalk-ops`  
+(npm 스크립트는 `cross-env`로 Windows PowerShell/cmd 호환)
 
-```bash
+```powershell
 # 0) 폴더 부트스트랩
 npm run factory:init
 
@@ -43,12 +44,12 @@ npm run factory:profile -- --character=yuna
 
 # 4) 로컬 대량 생성 (ComfyUI 권장)
 #    ComfyUI http://127.0.0.1:8188 실행 후:
-set FACTORY_ENGINE=comfyui
-set FACTORY_COMFY_WORKFLOW=C:\path\to\flux_or_sdxl_api.json
+$env:FACTORY_ENGINE="comfyui"
+$env:FACTORY_COMFY_WORKFLOW="C:\path\to\flux_or_sdxl_api.json"
 npm run factory:generate -- --character=yuna --count=150
 
-# Cloud/CI 스모크 (GPU 없음):
-set FACTORY_ENGINE=stub
+# GPU 없이 파이프라인 스모크:
+$env:FACTORY_ENGINE="stub"
 npm run factory:generate -- --character=yuna --count=2
 
 # 5) UI Mockup + Style Guide + Best Profile
