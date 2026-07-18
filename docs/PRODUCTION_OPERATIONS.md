@@ -2,11 +2,17 @@
 
 테스트가 아닌 **실제 운영**용 Photo Library 구축 절차입니다.
 
+> **Hybrid Photo Factory v2 (권장)**  
+> Midjourney = Master Dataset 10–20장만 / **RTX 5060 로컬 AI = 대량 생산**  
+> 상세: [`HYBRID_PHOTO_FACTORY.md`](./HYBRID_PHOTO_FACTORY.md)  
+> 빠른 시작: `npm run factory:yuna`
+
 ## 목표
 
-- Windows PC + Discord Midjourney로 **캐릭터당 2,000장+** Photo Library 구축
-- 프로그램은 **이미지를 생성하지 않음** — `Downloads\PickMeTalk_MJ`에 저장된 파일만 자동 관리
-- Phase: **150 → 500 → 1,000 → 2,000** (통계 게이트 통과 후 확장)
+- Windows PC에서 **캐릭터당 2,000~10,000장** Photo Library 구축
+- Midjourney는 Master 얼굴만, 대량은 `FACTORY_ENGINE=comfyui` (RTX)
+- Phase: **150 → 500 → 2,000 → 5,000 → 10,000** (통계 게이트 통과 후 확장)
+- (레거시) Discord watch-folder 대량 MJ 파이프라인은 아래에 유지
 
 ## 사전 조건
 
