@@ -1,7 +1,8 @@
 /**
  * Hybrid Factory orchestrator — Yuna-first pipeline entrypoints.
  */
-import { bootstrapPhotoLibrary } from '../midjourney-production/library-bootstrap.js';
+import { bootstrapPhotoLibrary, printBootstrapReport } from '../midjourney-production/library-bootstrap.js';
+import { join } from 'path';
 import { FACTORY_CHARACTERS, FACTORY_PHASE } from '../../config/hybrid-factory.config.js';
 import { bootstrapMasterDataset, masterDatasetStats, importInboxToMaster } from './master-dataset.js';
 import { buildCharacterProfile } from './character-profile.js';
@@ -13,9 +14,16 @@ import { getGenerationEngine, listGenerationEngines } from './engines/registry.j
 import { MASTER_SHOT_SPECS } from './master-shot-spec.js';
 
 export async function factoryInit(): Promise<void> {
-  bootstrapPhotoLibrary();
+  const boot = bootstrapPhotoLibrary();
+  printBootstrapReport(boot);
   const master = bootstrapMasterDataset();
   console.log('[factory] Master folders:', master);
+  console.log(`[factory] Master root : ${join(boot.libraryRoot, 'master')}`);
+  console.log(`[factory] Yuna inbox  : ${join(boot.libraryRoot, 'master', 'yuna', '_inbox')}`);
+  console.log('[factory] Note: init creates folders only. Images appear after:');
+  console.log('  1) Midjourney masters → master/{char}/_inbox');
+  console.log('  2) npm run factory:profile');
+  console.log('  3) npm run factory:generate  (ACTIVE photos → {char}/{category}/)');
   console.log(renderFactoryDashboard());
   console.log('Engines:', listGenerationEngines());
   const eng = getGenerationEngine();

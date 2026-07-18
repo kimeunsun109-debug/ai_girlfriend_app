@@ -23,6 +23,24 @@ Midjourney
 | RTX 5060 + Factory | 150 → 500 → 2k → 5k → 10k 대량 생산 |
 | PickMeTalk 제품 | Photo Library 조회만 (생성 없음) |
 
+## 저장 위치 (Windows)
+
+| 단계 | 명령 | D: 드라이브에 생기는 것 |
+|------|------|-------------------------|
+| Init | `factory:init` | **폴더만** `D:\PickMeTalk_PhotoLibrary\...` (이미지 없음) |
+| Master MJ | (수동) | Midjourney 결과물을 `D:\...\master\yuna\_inbox\` 에 **직접 복사** |
+| Profile | `factory:profile` | `_inbox` → `master\yuna\` 등록 (Face Identity) |
+| Generate | `factory:generate` | **대량 사진** → `D:\...\yuna\{category}\` (+ `_review` / `_rejected`) |
+| UI | `factory:ui` | D:가 아니라 프로젝트 `data\photo-universe\ui-mockups\` |
+
+`.env` 권장:
+
+```env
+PICKMETALK_RUNTIME=production
+PHOTO_LIBRARY_ROOT=D:/PickMeTalk_PhotoLibrary
+PHOTO_UNIVERSE_ENABLED=true
+```
+
 ## Yuna-first 운영 (Windows)
 
 작업 디렉터리: `C:\Users\user\pickmetalk-ops`  
