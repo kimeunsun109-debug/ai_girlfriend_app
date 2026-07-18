@@ -24,6 +24,8 @@ function Rename-IfExists($from, $to) {
 }
 
 Rename-IfExists "C:\Users\user\app_girl-friend" "C:\Users\user\pickmetalk"
+Rename-IfExists "C:\Users\user\pickmetalk-" "C:\Users\user\pickmetalk"
+# Ops local folder already renamed to pickmetalk-ops; keep for idempotent re-runs
 Rename-IfExists "C:\Users\user\ai_girlfriend_app" "C:\Users\user\pickmetalk-ops"
 
 if (Test-Path "C:\Users\user\pickmetalk\.git") {

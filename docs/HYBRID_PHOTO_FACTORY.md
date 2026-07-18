@@ -25,7 +25,7 @@ Midjourney
 
 ## Yuna-first 운영 (Windows)
 
-작업 디렉터리: `C:\Users\user\ai_girlfriend_app` (또는 `pickmetalk-ops`)
+작업 디렉터리: `C:\Users\user\pickmetalk-ops`
 
 ```bash
 # 0) 폴더 부트스트랩

@@ -38,12 +38,8 @@ MJ_IMPORT_WATCH_FOLDER=C:/Users/user/Downloads/PickMeTalk_MJ
 
 ## Phase 1 시작 (Yuna 150 권장)
 
-폴더가 `ai_girlfriend_app` 이면 먼저 rename 하거나 그 경로를 사용:
-
 ```powershell
-# Ops 폴더로 이동 (둘 중 하나)
 cd C:\Users\user\pickmetalk-ops
-# 또는: cd C:\Users\user\ai_girlfriend_app
 
 git pull origin main
 npm install
