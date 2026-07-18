@@ -53,11 +53,13 @@ export async function factoryYunaPhase1(options?: {
   const character = 'yuna';
   await factoryInit();
 
-  const stats = masterDatasetStats([character])[0]!;
+  importInboxToMaster(character);
+  let stats = masterDatasetStats([character])[0]!;
   console.log(`\n[factory] Yuna Master: ${stats.count}/${MASTER_SHOT_SPECS.length} (ready≥10: ${stats.ready})`);
 
   if (stats.count > 0) {
     await factoryBuildProfile(character);
+    stats = masterDatasetStats([character])[0]!;
   } else {
     console.log('[factory] Place Midjourney master images in:');
     console.log(`  master/yuna/_inbox/  then re-run factory:profile --character=yuna`);

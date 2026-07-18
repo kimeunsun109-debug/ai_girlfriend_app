@@ -48,7 +48,7 @@ export class ComfyUIEngine implements GenerationEngine {
     if (workflowPath && existsSync(workflowPath)) {
       workflow = JSON.parse(readFileSync(workflowPath, 'utf-8')) as Record<string, unknown>;
       // Best-effort inject prompt/seed into common node fields
-      this.injectPrompt(workflow, req.prompt, req.negativePrompt, seed);
+      this.injectPrompt(workflow, req.prompt, req.negativePrompt, seed, req.referenceImagePath);
     } else {
       workflow = {
         prompt: req.prompt,
@@ -118,17 +118,25 @@ export class ComfyUIEngine implements GenerationEngine {
     workflow: Record<string, unknown>,
     prompt: string,
     negative: string,
-    seed: number
+    seed: number,
+    referenceImagePath?: string
   ): void {
     for (const node of Object.values(workflow)) {
       if (!node || typeof node !== 'object') continue;
       const inputs = (node as { inputs?: Record<string, unknown> }).inputs;
       if (!inputs) continue;
-      if (typeof inputs.text === 'string' && inputs.text.includes('{{PROMPT}}')) {
-        inputs.text = prompt;
+      if (typeof inputs.text === 'string') {
+        inputs.text = inputs.text
+          .replace(/\{\{PROMPT\}\}/g, prompt)
+          .replace(/\{\{NEGATIVE\}\}/g, negative);
       }
-      if (typeof inputs.text === 'string' && inputs.text.includes('{{NEGATIVE}}')) {
-        inputs.text = negative;
+      if (referenceImagePath) {
+        for (const key of ['image', 'path', 'filename'] as const) {
+          const value = inputs[key];
+          if (typeof value === 'string' && value.includes('{{REFERENCE}}')) {
+            inputs[key] = value.replace(/\{\{REFERENCE\}\}/g, referenceImagePath);
+          }
+        }
       }
       if ('seed' in inputs) inputs.seed = seed;
       if ('noise_seed' in inputs) inputs.noise_seed = seed;
