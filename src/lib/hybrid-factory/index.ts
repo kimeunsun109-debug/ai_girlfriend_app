@@ -16,7 +16,7 @@ export {
 } from './character-profile.js';
 export { getGenerationEngine, listGenerationEngines } from './engines/registry.js';
 export type { GenerationEngine, GenerateRequest, GenerateResult } from './engines/types.js';
-export { composeNextPrompt, remainingFactoryPrompts } from './prompt-composer.js';
+export { composeNextPrompt, markComposedPromptUsed, remainingFactoryPrompts } from './prompt-composer.js';
 export { produceLocalBatch, nextScaleTier } from './local-producer.js';
 export {
   mapEmotion,

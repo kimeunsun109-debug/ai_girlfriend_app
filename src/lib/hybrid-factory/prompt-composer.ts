@@ -66,9 +66,19 @@ function buildNegative(character: string, entry: PromptCatalogEntry): string {
     .join(', ');
 }
 
+/** Reserve a catalog prompt slot after successful generation. */
+export function markComposedPromptUsed(composed: ComposedPrompt): void {
+  getProductionDb().markPromptUsed(
+    composed.character,
+    composed.category,
+    composed.catalogIndex,
+    composed.fingerprint,
+    `factory_${randomUUID()}`
+  );
+}
+
 /**
- * Pick next unused catalog prompt and mark it used immediately
- * so the same combination is never regenerated.
+ * Pick next unused catalog prompt without consuming it until generation succeeds.
  */
 export function composeNextPrompt(character: string, preferredCategory?: string): ComposedPrompt | null {
   const selected = promptSelector.pickUnusedOrGenerate(character, preferredCategory);
@@ -94,14 +104,6 @@ export function composeNextPrompt(character: string, preferredCategory?: string)
       )
       .digest('hex')
       .slice(0, 24);
-
-  getProductionDb().markPromptUsed(
-    character,
-    selected.catalogCategory,
-    selected.catalogIndex,
-    fingerprint,
-    `factory_${randomUUID()}`
-  );
 
   return {
     fingerprint,

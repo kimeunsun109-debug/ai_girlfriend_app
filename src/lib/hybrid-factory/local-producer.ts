@@ -19,9 +19,9 @@ import { libraryRelativePath } from '../photo-universe/paths.js';
 import { hashFileContent } from '../photo-catalog/image-validator.js';
 import type { UniversePhotoMeta } from '../photo-universe/types.js';
 import { getGenerationEngine } from './engines/registry.js';
-import { composeNextPrompt } from './prompt-composer.js';
+import { composeNextPrompt, markComposedPromptUsed } from './prompt-composer.js';
 import { listMasterImages } from './master-dataset.js';
-import { loadCharacterProfile, verifyAgainstMaster } from './character-profile.js';
+import { loadCharacterProfile, loadFaceIdentity, verifyAgainstMaster } from './character-profile.js';
 import { generateUiThumbnails } from './ui/thumbnails.js';
 import {
   mapCamera,
@@ -54,17 +54,22 @@ function classifyFaceStatus(
 ): 'ACTIVE' | 'REVIEW' | 'REJECTED' {
   if (similarity < FACTORY_FACE.rejectBelow) return 'REJECTED';
   if (!qualityPassed) return 'REJECTED';
-  if (similarity < FACTORY_FACE.autoApprove) return 'REVIEW';
-  return 'ACTIVE';
+  if (similarity >= FACTORY_FACE.autoApprove) return 'ACTIVE';
+  if (similarity >= FACTORY_FACE.reviewMin) return 'REVIEW';
+  return 'REJECTED';
 }
 
 export async function produceLocalBatch(options: LocalProduceOptions): Promise<LocalProduceResult> {
   const { character, count } = options;
   const profile = loadCharacterProfile(character);
-  if (!profile?.metadata.readyForMassProduction && listMasterImages(character).length < 10) {
+  const masters = listMasterImages(character);
+  if (masters.length < 10) {
     throw new Error(
       `${character}: Master Dataset < 10 images — finish Midjourney masters + factory:profile first`
     );
+  }
+  if (!profile?.metadata.readyForMassProduction || !loadFaceIdentity(character)?.masterEmbeddings.length) {
+    throw new Error(`${character}: run factory:profile first — face identity profile required`);
   }
 
   const engine = getGenerationEngine(options.engineId);
@@ -73,7 +78,6 @@ export async function produceLocalBatch(options: LocalProduceOptions): Promise<L
     throw new Error(`Engine ${engine.id} not available — start ComfyUI or use FACTORY_ENGINE=stub`);
   }
 
-  const masters = listMasterImages(character);
   const ref = masters[0];
 
   const result: LocalProduceResult = {
@@ -116,6 +120,7 @@ export async function produceLocalBatch(options: LocalProduceOptions): Promise<L
       continue;
     }
 
+    markComposedPromptUsed(composed);
     result.generated += 1;
 
     const face = await verifyAgainstMaster(character, gen.imagePath);
@@ -123,6 +128,7 @@ export async function produceLocalBatch(options: LocalProduceOptions): Promise<L
     const status = classifyFaceStatus(face.similarity, quality.passed);
 
     const folder = folderForPromptCategory(composed.category) || composed.location || 'daily';
+    const category = status === 'REVIEW' ? '_review' : folder;
     const contentHash = hashFileContent(gen.imagePath);
     const destDir =
       status === 'REJECTED'
@@ -147,7 +153,7 @@ export async function produceLocalBatch(options: LocalProduceOptions): Promise<L
       id: randomUUID(),
       universeId,
       character,
-      category: folder,
+      category,
       location: composed.location,
       emotion: mapEmotion(composed.emotion),
       tags: [composed.category, composed.season, composed.weather, composed.outfit],
@@ -200,14 +206,14 @@ export async function produceLocalBatch(options: LocalProduceOptions): Promise<L
     writeSidecarMeta(destPath, sidecar);
 
     if (status !== 'REJECTED') {
-      catalog.upsertPhoto(meta);
+      catalog.upsertPhoto(meta, { status });
     }
-    catalog.syncJsonIndexes();
-
     console.log(
-      `[factory] ${i + 1}/${count} ${status} face=${face.similarityPercent}% q=${quality.qualityScore} → ${folder}`
+      `[factory] ${i + 1}/${count} ${status} face=${face.similarityPercent}% q=${quality.qualityScore} → ${category}`
     );
   }
+
+  catalog.syncJsonIndexes();
 
   return result;
 }

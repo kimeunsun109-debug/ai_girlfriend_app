@@ -14,7 +14,13 @@ const engines: Record<string, GenerationEngine> = {
 
 export function getGenerationEngine(id?: GenerationEngineId | string): GenerationEngine {
   const key = (id ?? FACTORY_ENGINE) as string;
-  return engines[key] ?? engines.stub!;
+  const engine = engines[key];
+  if (!engine) {
+    throw new Error(
+      `Unknown generation engine "${key}" — valid: ${Object.keys(engines).join(', ')}`
+    );
+  }
+  return engine;
 }
 
 export function listGenerationEngines(): Array<{ id: string; name: string }> {
