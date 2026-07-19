@@ -153,3 +153,5 @@ YUNA_MASTER_01.png … YUNA_MASTER_16.png
 Master 16장이 Face Identity로 잡힌 뒤, 생활샷은 Prompt Catalog 조합을 쓰세요.  
 예: cafe / commute / bed / rain / selfie 등은 `assets/prompts/yuna/*.json` 또는  
 `npm run factory:generate` (ComfyUI 워크플로 연결 후).
+
+다른 캐릭터 Master 프롬프트: [`docs/local-ai-master-prompts/`](./local-ai-master-prompts/)
