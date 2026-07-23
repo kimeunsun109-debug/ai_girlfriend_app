@@ -19,6 +19,7 @@
     "photos:import": "tsx scripts/photos-import.ts",
     "photos:migrate": "tsx scripts/migrate-photo-folders.ts",
     "photos:prompt": "tsx scripts/image-prompt-generate.ts",
+    "photos:front-candidates": "tsx scripts/front-candidates-20.ts",
     "prompts:build": "tsx scripts/build-prompt-catalog.ts",
     "prompts:verify": "tsx scripts/build-prompt-catalog.ts verify",
     "universe:scan": "tsx scripts/photos-universe-scan.ts",

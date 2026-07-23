@@ -1,0 +1,31 @@
+{
+  "seed": 20260723,
+  "summary": [
+    {
+      "slug": "yuna",
+      "count": 20,
+      "file": "/workspace/data/front-candidates-2026-07-23/yuna/front-20.json"
+    },
+    {
+      "slug": "narin",
+      "count": 20,
+      "file": "/workspace/data/front-candidates-2026-07-23/narin/front-20.json"
+    },
+    {
+      "slug": "yunseo",
+      "count": 20,
+      "file": "/workspace/data/front-candidates-2026-07-23/yunseo/front-20.json"
+    },
+    {
+      "slug": "eunha",
+      "count": 20,
+      "file": "/workspace/data/front-candidates-2026-07-23/eunha/front-20.json"
+    },
+    {
+      "slug": "jiyu",
+      "count": 20,
+      "file": "/workspace/data/front-candidates-2026-07-23/jiyu/front-20.json"
+    }
+  ],
+  "generatedAt": "2026-07-23T07:26:34.197Z"
+}
