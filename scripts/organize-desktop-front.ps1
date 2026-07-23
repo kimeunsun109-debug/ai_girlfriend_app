@@ -58,32 +58,71 @@ if (-not (Test-Path $SourceRoot)) {
 }
 
 $report = @()
+$usedPaths = @{}
 
 foreach ($slug in $slugs) {
   $front = Join-Path $DesktopAi "$slug\front"
   $candidates = @()
 
-  # Prefer slug-named subfolder, else scan SourceRoot for *slug*
+  # Prefer slug-named subfolder; else scan SourceRoot for basename matching slug
   $slugDir = Join-Path $SourceRoot $slug
   $searchRoots = @()
   if (Test-Path $slugDir) { $searchRoots += $slugDir }
   $searchRoots += $SourceRoot
 
+  $slugNameRe = '(?i)(^|[^a-z0-9])' + [regex]::Escape($slug) + '([^a-z0-9]|$)'
   foreach ($root in $searchRoots) {
     foreach ($pat in $exts) {
       $candidates += Get-ChildItem -Path $root -Filter $pat -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -match [regex]::Escape($slug) -or $root -eq $slugDir }
+        Where-Object {
+          -not $usedPaths.ContainsKey($_.FullName) -and (
+            $root -eq $slugDir -or $_.BaseName -match $slugNameRe
+          )
+        }
     }
   }
 
   # Dedupe by full path
-  $candidates = $candidates | Sort-Object FullName -Unique | Select-Object -First $MaxPerChar
+  $candidates = $candidates | Sort-Object FullName -Unique
+
+  # Place files named {slug}_front_NNN at matching prompt index; fill gaps from the rest
+  $byIndex = @{}
+  $unordered = @()
+  $indexRe = '(?i)^' + [regex]::Escape($slug) + '_front_(\d+)$'
+  foreach ($file in $candidates) {
+    if ($file.BaseName -match $indexRe) {
+      $idx = [int]$Matches[1]
+      if ($idx -ge 1 -and $idx -le $MaxPerChar -and -not $byIndex.ContainsKey($idx)) {
+        $byIndex[$idx] = $file
+        continue
+      }
+    }
+    $unordered += $file
+  }
+  $unordered = @($unordered | Sort-Object FullName)
+  $u = 0
+  for ($slot = 1; $slot -le $MaxPerChar; $slot++) {
+    if (-not $byIndex.ContainsKey($slot) -and $u -lt $unordered.Count) {
+      $byIndex[$slot] = $unordered[$u]
+      $u++
+    }
+  }
+
+  # Drop stale front_* from a prior run so incomplete re-runs don't keep old higher slots
+  if (-not $DryRun) {
+    Get-ChildItem -Path $front -File -ErrorAction SilentlyContinue |
+      Where-Object { $_.BaseName -match ('(?i)^' + [regex]::Escape($slug) + '_front_\d+$') } |
+      Remove-Item -Force
+  }
 
   $i = 0
-  foreach ($file in $candidates) {
+  for ($slot = 1; $slot -le $MaxPerChar; $slot++) {
+    if (-not $byIndex.ContainsKey($slot)) { continue }
+    $file = $byIndex[$slot]
     $i++
-    $destName = "{0}_front_{1:D3}{2}" -f $slug, $i, $file.Extension.ToLower()
+    $destName = "{0}_front_{1:D3}{2}" -f $slug, $slot, $file.Extension.ToLower()
     $dest = Join-Path $front $destName
+    $usedPaths[$file.FullName] = $true
     if ($DryRun) {
       Write-Host "[dry] $($file.FullName) -> $dest"
     } else {
@@ -92,7 +131,7 @@ foreach ($slug in $slugs) {
     }
   }
 
-  $count = (Get-ChildItem -Path $front -File | Where-Object { $_.Extension -match '\.(jpg|jpeg|png|webp)$' }).Count
+  $count = $i
   $readme = Join-Path $front "README.txt"
   $line = "생성일 $(Get-Date -Format 'yyyy-MM-dd') · front 후보 총 ${count}장 · 캐릭터 미확정 · heroPhoto 변경 금지"
   if (-not $DryRun) {

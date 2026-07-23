@@ -105,11 +105,18 @@ async function main() {
 
   const summary: Array<{ slug: string; count: number; file: string }> = [];
 
+  const allSlugs = CHARACTER_SPECS.map((c) => c.slug);
+
   for (const slug of slugs) {
+    const charOffset = allSlugs.indexOf(slug);
+    if (charOffset < 0) {
+      console.error(`Unknown character: ${slug}`);
+      process.exit(1);
+    }
     const batch = [];
     for (let i = 0; i < count; i++) {
       const item = characterImageFactory.generate(slug, {
-        seed: seed + slugs.indexOf(slug) * 1000 + i,
+        seed: seed + charOffset * 1000 + i,
         scenario: frontScenario(i),
       });
       if (!item) {
