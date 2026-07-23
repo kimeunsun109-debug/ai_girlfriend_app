@@ -11,7 +11,7 @@
 | Repo | Role | Keep / port |
 |------|------|-------------|
 | `app_girl-friend` | Product (pickmetalk.com) | Unique product home |
-| `ai_girlfriend_app` | Ops (Windows MJ / library) | Never merge into product |
+| `pickmetalk-ops` (was `ai_girlfriend_app`) | Ops (Windows MJ / library) | Never merge into product |
 
 Repos are **not** git forks (no common ancestor). Merge of `main` branches is forbidden and unnecessary.
 
@@ -64,7 +64,7 @@ Deferred (by design): Adaptive DNA full persistence, Living AI day DB, Meet UI, 
 - **PR: blocked** — GitHub App `cursor[bot]` has no push permission on `app_girl-friend` (403)
 - Apply package: `bridges/app_girl-friend-port/` (see `APPLY.md`)
 
-### Ops (`ai_girlfriend_app`) — this PR
+### Ops (`pickmetalk-ops`) — this PR
 
 - Branch: `cursor/architecture-bridge-00f8`
 - Contents: bridge docs, publish script, product patch package, this report

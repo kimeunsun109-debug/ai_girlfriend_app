@@ -25,7 +25,7 @@ gh pr create --base main --head cursor/architecture-integration-00f8 \
 cd app_girl-friend
 git fetch origin
 git checkout -b cursor/architecture-integration-00f8 origin/cursor/photo-push-system-e030
-git am /path/to/ai_girlfriend_app/bridges/app_girl-friend-port/011-architecture-on-photo-push.patch
+git am /path/to/pickmetalk-ops/bridges/app_girl-friend-port/011-architecture-on-photo-push.patch
 npm install
 npm run lint && npx tsc --noEmit && npm run build
 ```
@@ -35,7 +35,7 @@ npm run lint && npx tsc --noEmit && npm run build
 ```bash
 cd app_girl-friend
 git checkout -b cursor/architecture-integration-00f8 origin/main
-git am /path/to/ai_girlfriend_app/bridges/app_girl-friend-port/architecture-integration.patch
+git am /path/to/pickmetalk-ops/bridges/app_girl-friend-port/architecture-integration.patch
 npm install
 npm run lint && npx tsc --noEmit && npm run build
 ```

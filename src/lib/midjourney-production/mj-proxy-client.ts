@@ -13,11 +13,8 @@
  *   MJ_PROXY_BASE_URL       — default https://api.useapi.net/v2
  *   MJ_PROXY_MODE           — useapi | generic
  */
-import { createWriteStream } from 'fs';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
-import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
 
 export interface MjImagineRequest {
   prompt: string;
@@ -181,7 +178,6 @@ export class MjProxyClient {
     const res = await fetch(url);
     if (!res.ok || !res.body) throw new Error(`download failed ${res.status}: ${url}`);
     const arrayBuffer = await res.arrayBuffer();
-    const { writeFileSync } = await import('fs');
     writeFileSync(destPath, Buffer.from(arrayBuffer));
   }
 }

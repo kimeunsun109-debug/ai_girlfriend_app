@@ -53,7 +53,7 @@ MJ_JOB_POLL_MS=15000
 ## 2. Windows 실행 (터미널 2개)
 
 ```powershell
-cd C:\Users\user\ai_girlfriend_app
+cd C:\Users\user\pickmetalk-ops
 git pull origin main
 npm install
 

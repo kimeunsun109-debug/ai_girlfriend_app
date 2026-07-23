@@ -106,12 +106,15 @@ export class UniverseCatalogDb {
     return new Map(rows.map((r) => [r.universe_id, r.perceptual_hash]));
   }
 
-  upsertPhoto(meta: UniversePhotoMeta): 'insert' | 'update' {
+  upsertPhoto(
+    meta: UniversePhotoMeta,
+    options?: { status?: 'ACTIVE' | 'REVIEW' | 'REJECTED' }
+  ): 'insert' | 'update' {
     const existing = this.db
       .prepare('SELECT id FROM photos WHERE content_hash = ?')
       .get(meta.contentHash);
 
-    const data = this.metaToRow(meta);
+    const data = this.metaToRow(meta, options?.status ?? 'ACTIVE');
     if (existing) {
       this.db
         .prepare(
@@ -119,14 +122,14 @@ export class UniverseCatalogDb {
             location=?, category=?, time=?, weather=?, season=?, emotion=?,
             pose=?, camera=?, lighting=?, outfit=?, prompt=?, negative_prompt=?,
             perceptual_hash=?, thumbnail_path=?, tags=?, quality_score=?,
-            imported_at=?, status='ACTIVE'
+            imported_at=?, status=?
            WHERE content_hash=?`
         )
         .run(
           data.location, data.category, data.time, data.weather, data.season, data.emotion,
           data.pose, data.camera, data.lighting, data.outfit, data.prompt, data.negative_prompt,
           data.perceptual_hash, data.thumbnail_path, data.tags, data.quality_score,
-          data.imported_at, meta.contentHash
+          data.imported_at, data.status, meta.contentHash
         );
       return 'update';
     }
@@ -295,7 +298,7 @@ export class UniverseCatalogDb {
     }
   }
 
-  private metaToRow(meta: UniversePhotoMeta) {
+  private metaToRow(meta: UniversePhotoMeta, status: 'ACTIVE' | 'REVIEW' | 'REJECTED' = 'ACTIVE') {
     const charInfo = CHARACTER_SLUG_MAP[meta.character];
     return {
       id: meta.id,
@@ -326,7 +329,7 @@ export class UniverseCatalogDb {
       used_count: meta.usedCount,
       created_at: meta.createdAt,
       imported_at: meta.importedAt,
-      status: 'ACTIVE',
+      status,
     };
   }
 

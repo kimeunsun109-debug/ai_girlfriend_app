@@ -8,7 +8,7 @@ git fetch origin
 git checkout cursor/architecture-integration-00f8
 git pull origin cursor/architecture-integration-00f8
 
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kimeunsun109-debug/ai_girlfriend_app/cursor/architecture-bridge-00f8/bridges/app_girl-friend-port/012-rename-and-cron.patch" -OutFile "$env:TEMP\012-rename-and-cron.patch"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/kimeunsun109-debug/pickmetalk-ops/main/bridges/app_girl-friend-port/012-rename-and-cron.patch" -OutFile "$env:TEMP\012-rename-and-cron.patch"
 
 git am "$env:TEMP\012-rename-and-cron.patch"
 git push -u origin cursor/architecture-integration-00f8
