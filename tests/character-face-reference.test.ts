@@ -101,3 +101,31 @@ describe('character-face-reference.config', () => {
     expect(cmd).toContain('--no');
   });
 });
+
+describe('face-turnaround.config', () => {
+  it('generates 9 jobs per character (3 angles × 3 variations)', async () => {
+    const { buildFaceTurnaroundJobs, FACE_TURNAROUND_CHARACTERS } = await import(
+      '../src/config/face-turnaround.config.js'
+    );
+    const jobs = buildFaceTurnaroundJobs(['yuna']);
+    expect(jobs).toHaveLength(9);
+    expect(jobs.filter((j) => j.angle === 'front')).toHaveLength(3);
+    expect(jobs.filter((j) => j.angle === 'right')).toHaveLength(3);
+    expect(jobs.filter((j) => j.angle === 'left')).toHaveLength(3);
+    expect(jobs[0]!.scenePrompt).toContain('light natural everyday makeup');
+    expect(jobs[0]!.negativePrompt).toContain('bare face');
+    expect(FACE_TURNAROUND_CHARACTERS).toHaveLength(4);
+  });
+
+  it('buildFaceTurnaroundMjCommand wraps identity lock', async () => {
+    const { buildFaceTurnaroundJobs, buildFaceTurnaroundMjCommand } = await import(
+      '../src/config/face-turnaround.config.js'
+    );
+    const job = buildFaceTurnaroundJobs(['narin'])[0]!;
+    const cmd = buildFaceTurnaroundMjCommand(job);
+    expect(cmd).toContain('/imagine prompt:');
+    expect(cmd).toContain('나린');
+    expect(cmd).toContain('frontal face portrait');
+    expect(cmd).toContain('bare face');
+  });
+});

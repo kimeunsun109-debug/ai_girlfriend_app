@@ -1,0 +1,38 @@
+{
+  "totalJobs": 36,
+  "characters": [
+    {
+      "character": "narin",
+      "name": "나린",
+      "jobCount": 9,
+      "crefConfigured": false,
+      "localReferencePath": "C:\\Users\\user\\OneDrive\\Desktop\\픽미톡 ai\\확정\\나린",
+      "outputDir": "/workspace/data/photo-universe/face-turnaround/narin"
+    },
+    {
+      "character": "yuna",
+      "name": "유나",
+      "jobCount": 9,
+      "crefConfigured": false,
+      "localReferencePath": "C:\\Users\\user\\OneDrive\\Desktop\\픽미톡 ai\\확정\\유나",
+      "outputDir": "/workspace/data/photo-universe/face-turnaround/yuna"
+    },
+    {
+      "character": "jiyu",
+      "name": "지유",
+      "jobCount": 9,
+      "crefConfigured": false,
+      "localReferencePath": "C:\\Users\\user\\OneDrive\\Desktop\\픽미톡 ai\\확정\\지유\\지유 2.png",
+      "outputDir": "/workspace/data/photo-universe/face-turnaround/jiyu"
+    },
+    {
+      "character": "yunseo",
+      "name": "윤서",
+      "jobCount": 9,
+      "crefConfigured": false,
+      "localReferencePath": "C:\\Users\\user\\OneDrive\\Desktop\\픽미톡 ai\\확정\\윤서\\윤서4.png",
+      "outputDir": "/workspace/data/photo-universe/face-turnaround/yunseo"
+    }
+  ],
+  "createdAt": "2026-08-11T05:02:10.907Z"
+}
