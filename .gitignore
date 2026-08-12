@@ -20,6 +20,13 @@ data/photo-universe/import-processed/
 data/photo-universe/production-stats.json
 data/photo-universe/production-events.jsonl
 data/photo-universe/characters-manifest/
+data/photo-universe/character-profiles/
+data/photo-universe/factory-generated/
+data/photo-universe/factory-state.json
+data/photo-universe/style-guides/
+data/photo-universe/thumbnail-cache/
+data/photo-universe/ui-mockups/
+data/photo-universe/master-manifests/
 !data/photo-universe/.gitkeep
 web/node_modules/
 web/.next/

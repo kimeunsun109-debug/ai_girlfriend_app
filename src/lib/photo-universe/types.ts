@@ -27,7 +27,14 @@ export type UniverseCamera =
   | 'friend took photo'
   | 'candid';
 
-export type GeneratedBy = 'Midjourney' | 'import' | 'manual';
+export type GeneratedBy =
+  | 'Midjourney'
+  | 'import'
+  | 'manual'
+  | 'local_ai'
+  | 'flux'
+  | 'sdxl'
+  | 'comfyui';
 
 export interface QualityReport {
   width: number;
