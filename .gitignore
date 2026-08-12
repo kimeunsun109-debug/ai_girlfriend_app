@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.*
 *.log
 .DS_Store
 test-fixtures/
@@ -22,3 +23,8 @@ data/photo-universe/characters-manifest/
 !data/photo-universe/.gitkeep
 web/node_modules/
 web/.next/
+__pycache__/
+*.pyc
+.cache/
+.venv/
+venv/
